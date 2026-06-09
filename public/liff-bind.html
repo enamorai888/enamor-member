@@ -57,7 +57,7 @@
         if(data.success){
           document.getElementById('form-view').style.display='none';
           document.getElementById('success-view').style.display='block';
-          setTimeout(()=>liff.closeWindow(),2000);
+          setTimeout(()=>{ window.location.href='https://enamorshop.com/pages/page-618-skin'; },2000);
         }else{
           errMsg.textContent=data.message||'綁定失敗，請稍後再試';
           errMsg.style.display='block';btn.disabled=false;btn.textContent='確認綁定';
