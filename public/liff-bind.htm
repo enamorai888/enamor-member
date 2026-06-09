@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EnamoR 會員綁定</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#FAFAF7;font-family:'Noto Sans TC',sans-serif;font-weight:300;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+    .container{max-width:360px;width:100%;text-align:center;}
+    .logo{width:120px;margin-bottom:32px;filter:invert(1);}
+    h1{font-size:18px;font-weight:400;color:#1C1C1A;margin-bottom:8px;letter-spacing:1px;}
+    p{font-size:13px;color:#5C5C58;line-height:1.7;margin-bottom:32px;}
+    input{width:100%;padding:14px 16px;border:0.5px solid rgba(28,28,26,0.2);background:white;font-size:14px;font-family:inherit;color:#1C1C1A;margin-bottom:12px;outline:none;}
+    input:focus{border-color:#8B6F47;}
+    button{width:100%;padding:16px;background:#1C1C1A;color:#FAFAF7;border:none;font-size:12px;letter-spacing:3px;font-family:inherit;cursor:pointer;text-transform:uppercase;}
+    button:hover{background:#8B6F47;}
+    button:disabled{opacity:0.5;cursor:not-allowed;}
+    .success{display:none;padding:24px;background:rgba(139,111,71,0.08);border-left:2px solid #8B6F47;}
+    .success p{margin:0;color:#1C1C1A;}
+    .error-msg{font-size:12px;color:#B5536A;margin-top:8px;display:none;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img class="logo" src="https://raw.githubusercontent.com/enamorai888/enamor-line-bot/main/public/EnamoR-logo-PNG-LOGO-B.png" alt="EnamoR">
+    <div id="form-view">
+      <h1>會員綁定</h1>
+      <p>輸入你的 Email，將 LINE 帳號與會員資料連結，享受每月會員禮與專屬等級福利。</p>
+      <input type="email" id="email-input" placeholder="your@email.com" autocomplete="email">
+      <div class="error-msg" id="error-msg"></div>
+      <button id="submit-btn" onclick="submitBind()">確認綁定</button>
+    </div>
+    <div class="success" id="success-view">
+      <p>綁定完成，歡迎加入 EnamoR。</p>
+    </div>
+  </div>
+  <script>
+    var lineUID=null;
+    async function initLiff(){
+      await liff.init({liffId:'1656208126-fpNe2w28'});
+      if(!liff.isLoggedIn()){liff.login();return;}
+      var profile=await liff.getProfile();
+      lineUID=profile.userId;
+    }
+    async function submitBind(){
+      var email=document.getElementById('email-input').value.trim();
+      var btn=document.getElementById('submit-btn');
+      var errMsg=document.getElementById('error-msg');
+      if(!email||!email.includes('@')){errMsg.textContent='請輸入有效的 Email';errMsg.style.display='block';return;}
+      if(!lineUID){errMsg.textContent='無法取得 LINE 資訊，請重新開啟';errMsg.style.display='block';return;}
+      btn.disabled=true;btn.textContent='處理中...';errMsg.style.display='none';
+      try{
+        var res=await fetch('/api/liff-bind',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,lineUID})});
+        var data=await res.json();
+        if(data.success){
+          document.getElementById('form-view').style.display='none';
+          document.getElementById('success-view').style.display='block';
+          setTimeout(()=>liff.closeWindow(),2000);
+        }else{
+          errMsg.textContent=data.message||'綁定失敗，請稍後再試';
+          errMsg.style.display='block';btn.disabled=false;btn.textContent='確認綁定';
+        }
+      }catch(e){
+        errMsg.textContent='網路錯誤，請稍後再試';
+        errMsg.style.display='block';btn.disabled=false;btn.textContent='確認綁定';
+      }
+    }
+    initLiff().catch(console.error);
+  </script>
+</body>
+</html>
