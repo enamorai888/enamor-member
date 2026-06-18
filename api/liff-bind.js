@@ -13,7 +13,6 @@ export default async function handler(req, res) {
   const domain = process.env.SHOPIFY_DOMAIN;
   const clientId = process.env.SHOPIFY_CLIENT_ID;
   const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
-  const shop = domain.replace('.myshopify.com', '');
 
   try {
     // 換 token
@@ -46,12 +45,41 @@ export default async function handler(req, res) {
     const searchData = await searchRes.json();
     const customers = searchData.customers;
 
+    let customerId, existingTags;
+
     if (!customers || customers.length === 0) {
-      return res.status(200).json({ success: true, message: '已記錄，會員資料建立後自動連結' });
+      // 找不到 → 建立新 customer
+      const createRes = await fetch(
+        `https://${domain}/admin/api/2024-01/customers.json`,
+        {
+          method: 'POST',
+          headers: {
+            'X-Shopify-Access-Token': accessToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            customer: {
+              email: email,
+              tags: tag,
+              email_marketing_consent: {
+                state: 'not_subscribed',
+                opt_in_level: 'single_opt_in'
+              }
+            }
+          })
+        }
+      );
+      const createData = await createRes.json();
+      if (!createData.customer) {
+        console.error('Create error:', JSON.stringify(createData));
+        return res.status(500).json({ success: false, message: '建立會員失敗' });
+      }
+      return res.status(200).json({ success: true });
     }
 
+    // 找到 → 更新 tag
     const customer = customers[0];
-    const existingTags = customer.tags ? customer.tags.split(', ') : [];
+    existingTags = customer.tags ? customer.tags.split(', ') : [];
     const filteredTags = existingTags.filter(t => !t.startsWith('uid_line_'));
     filteredTags.push(tag);
     const newTags = filteredTags.join(', ');
