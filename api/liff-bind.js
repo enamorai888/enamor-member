@@ -100,7 +100,7 @@ export default async function handler(req, res) {
     }
 
     // 推播月禮
-    const message = `歡迎成為 EnamoR 恩娜茉兒的一員。\n\n很高興您在這裡。從現在起，每個月我們會透過 LINE 私訊發送專屬月禮連結，只有綁定會員才能收到，請保持好友狀態不要封鎖，避免錯失每月禮遇。\n\n這是您的 6 月月禮，專屬於您：\nhttps://enamor.cc/xZpUD`;
+    const message = `歡迎成為 EnamoR 恩娜茉兒的一員。\n\n很高興您在這裡。從現在起，每個月我們會透過 LINE 私訊發送專屬月禮連結，只有綁定會員才能收到，請保持好友狀態不要封鎖，避免錯失每月禮遇。\n\n這是您本月的會員月禮，專屬於您：\nhttps://enamor.cc/xZpUD`;
 
     await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
