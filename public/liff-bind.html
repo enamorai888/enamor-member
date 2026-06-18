@@ -11,14 +11,17 @@
     .container{max-width:360px;width:100%;text-align:center;}
     .logo{width:120px;margin-bottom:32px;filter:invert(1);}
     h1{font-size:18px;font-weight:400;color:#1C1C1A;margin-bottom:8px;letter-spacing:1px;}
-    p{font-size:13px;color:#5C5C58;line-height:1.7;margin-bottom:32px;}
+    .subtitle{font-size:13px;color:#5C5C58;line-height:1.7;margin-bottom:24px;}
+    .benefits{text-align:left;margin-bottom:28px;background:rgba(139,111,71,0.06);border-left:2px solid #8B6F47;padding:16px 18px;display:flex;flex-direction:column;gap:10px;}
+    .benefit-item{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#1C1C1A;line-height:1.6;}
+    .benefit-num{font-size:11px;color:#8B6F47;font-weight:400;letter-spacing:0.05em;min-width:16px;padding-top:1px;}
     input{width:100%;padding:14px 16px;border:0.5px solid rgba(28,28,26,0.2);background:white;font-size:14px;font-family:inherit;color:#1C1C1A;margin-bottom:12px;outline:none;}
     input:focus{border-color:#8B6F47;}
     button{width:100%;padding:16px;background:#1C1C1A;color:#FAFAF7;border:none;font-size:12px;letter-spacing:3px;font-family:inherit;cursor:pointer;text-transform:uppercase;}
     button:hover{background:#8B6F47;}
     button:disabled{opacity:0.5;cursor:not-allowed;}
     .success{display:none;padding:24px;background:rgba(139,111,71,0.08);border-left:2px solid #8B6F47;}
-    .success p{margin:0;color:#1C1C1A;}
+    .success p{margin:0;color:#1C1C1A;font-size:14px;line-height:1.7;}
     .error-msg{font-size:12px;color:#B5536A;margin-top:8px;display:none;}
   </style>
 </head>
@@ -27,7 +30,12 @@
     <img class="logo" src="https://raw.githubusercontent.com/enamorai888/enamor-line-bot/main/public/EnamoR-logo-PNG-LOGO-B.png" alt="EnamoR">
     <div id="form-view">
       <h1>會員綁定</h1>
-      <p>輸入你的 Email，將 LINE 帳號與會員資料連結，享受每月會員禮與專屬等級福利。</p>
+      <p class="subtitle">輸入 Email，將 LINE 帳號與會員資料連結。</p>
+      <div class="benefits">
+        <div class="benefit-item"><span class="benefit-num">01</span><span>每月發送專屬連結，領取月禮免費小褲</span></div>
+        <div class="benefit-item"><span class="benefit-num">02</span><span>不定時 LINE 專屬神秘優惠</span></div>
+        <div class="benefit-item"><span class="benefit-num">03</span><span>活動通知不漏接</span></div>
+      </div>
       <input type="email" id="email-input" placeholder="your@email.com" autocomplete="email">
       <div class="error-msg" id="error-msg"></div>
       <button id="submit-btn" onclick="submitBind()">確認綁定</button>
@@ -57,7 +65,7 @@
         if(data.success){
           document.getElementById('form-view').style.display='none';
           document.getElementById('success-view').style.display='block';
-          setTimeout(()=>{ window.location.href='https://enamorshop.com/pages/page-618-skin'; },2000);
+          setTimeout(()=>{ window.location.href='https://enamorshop.com'; },2000);
         }else{
           errMsg.textContent=data.message||'綁定失敗，請稍後再試';
           errMsg.style.display='block';btn.disabled=false;btn.textContent='確認綁定';
