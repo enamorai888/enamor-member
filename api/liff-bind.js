@@ -13,9 +13,10 @@ export default async function handler(req, res) {
   const domain = process.env.SHOPIFY_DOMAIN;
   const clientId = process.env.SHOPIFY_CLIENT_ID;
   const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
+  const lineToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
   try {
-    // 換 token
+    // 換 Shopify token
     const tokenRes = await fetch(
       `https://${domain}/admin/oauth/access_token`,
       {
@@ -45,8 +46,6 @@ export default async function handler(req, res) {
     const searchData = await searchRes.json();
     const customers = searchData.customers;
 
-    let customerId, existingTags;
-
     if (!customers || customers.length === 0) {
       // 找不到 → 建立新 customer
       const createRes = await fetch(
@@ -74,33 +73,46 @@ export default async function handler(req, res) {
         console.error('Create error:', JSON.stringify(createData));
         return res.status(500).json({ success: false, message: '建立會員失敗' });
       }
-      return res.status(200).json({ success: true });
-    }
+    } else {
+      // 找到 → 更新 tag
+      const customer = customers[0];
+      const existingTags = customer.tags ? customer.tags.split(', ') : [];
+      const filteredTags = existingTags.filter(t => !t.startsWith('uid_line_'));
+      filteredTags.push(tag);
+      const newTags = filteredTags.join(', ');
 
-    // 找到 → 更新 tag
-    const customer = customers[0];
-    existingTags = customer.tags ? customer.tags.split(', ') : [];
-    const filteredTags = existingTags.filter(t => !t.startsWith('uid_line_'));
-    filteredTags.push(tag);
-    const newTags = filteredTags.join(', ');
-
-    const updateRes = await fetch(
-      `https://${domain}/admin/api/2024-01/customers/${customer.id}.json`,
-      {
-        method: 'PUT',
-        headers: {
-          'X-Shopify-Access-Token': accessToken,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ customer: { id: customer.id, tags: newTags } })
+      const updateRes = await fetch(
+        `https://${domain}/admin/api/2024-01/customers/${customer.id}.json`,
+        {
+          method: 'PUT',
+          headers: {
+            'X-Shopify-Access-Token': accessToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ customer: { id: customer.id, tags: newTags } })
+        }
+      );
+      if (!updateRes.ok) {
+        const err = await updateRes.json();
+        console.error('Update error:', JSON.stringify(err));
+        return res.status(500).json({ success: false, message: '寫入失敗' });
       }
-    );
-
-    if (!updateRes.ok) {
-      const err = await updateRes.json();
-      console.error('Update error:', JSON.stringify(err));
-      return res.status(500).json({ success: false, message: '寫入失敗' });
     }
+
+    // 推播月禮
+    const message = `歡迎成為 EnamoR 恩娜茉兒的一員。\n\n很高興您在這裡。從現在起，每個月我們會透過 LINE 私訊發送專屬月禮連結，只有綁定會員才能收到，請保持好友狀態不要封鎖，避免錯失每月禮遇。\n\n這是您的 6 月月禮，專屬於您：\nhttps://enamor.cc/xZpUD`;
+
+    await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${lineToken}`
+      },
+      body: JSON.stringify({
+        to: lineUID,
+        messages: [{ type: 'text', text: message }]
+      })
+    });
 
     return res.status(200).json({ success: true });
   } catch (err) {
