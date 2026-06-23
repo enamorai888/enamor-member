@@ -15,6 +15,8 @@ export default async function handler(req, res) {
   const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
   const lineToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
+  const welcomeMessage = `歡迎成為 EnamoR 恩娜茉兒的一員。\n\n很高興您在這裡。從現在起，每個月我們會透過 LINE 私訊發送專屬月禮連結，只有綁定會員才能收到，請保持好友狀態不要封鎖，避免錯失每月禮遇。\n\n這是您本月的會員月禮，專屬於您：\nhttps://enamor.cc/xZpUD`;
+
   try {
     // 換 Shopify token
     const tokenRes = await fetch(
@@ -46,8 +48,10 @@ export default async function handler(req, res) {
     const searchData = await searchRes.json();
     const customers = searchData.customers;
 
+    let isFirstBind = true;
+
     if (!customers || customers.length === 0) {
-      // 找不到 → 建立新 customer
+      // 找不到 → 建立新 customer，一定是第一次
       const createRes = await fetch(
         `https://${domain}/admin/api/2024-01/customers.json`,
         {
@@ -74,9 +78,11 @@ export default async function handler(req, res) {
         return res.status(500).json({ success: false, message: '建立會員失敗' });
       }
     } else {
-      // 找到 → 更新 tag
+      // 找到 → 判斷是否已綁定過
       const customer = customers[0];
       const existingTags = customer.tags ? customer.tags.split(', ') : [];
+      isFirstBind = !existingTags.some(t => t.startsWith('uid_line_'));
+
       const filteredTags = existingTags.filter(t => !t.startsWith('uid_line_'));
       filteredTags.push(tag);
       const newTags = filteredTags.join(', ');
@@ -99,20 +105,20 @@ export default async function handler(req, res) {
       }
     }
 
-    // 推播月禮
-    const message = `歡迎成為 EnamoR 恩娜茉兒的一員。\n\n很高興您在這裡。從現在起，每個月我們會透過 LINE 私訊發送專屬月禮連結，只有綁定會員才能收到，請保持好友狀態不要封鎖，避免錯失每月禮遇。\n\n這是您本月的會員月禮，專屬於您：\nhttps://enamor.cc/xZpUD`;
-
-    await fetch('https://api.line.me/v2/bot/message/push', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${lineToken}`
-      },
-      body: JSON.stringify({
-        to: lineUID,
-        messages: [{ type: 'text', text: message }]
-      })
-    });
+    // 只有第一次綁定才推月禮
+    if (isFirstBind) {
+      await fetch('https://api.line.me/v2/bot/message/push', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${lineToken}`
+        },
+        body: JSON.stringify({
+          to: lineUID,
+          messages: [{ type: 'text', text: welcomeMessage }]
+        })
+      });
+    }
 
     return res.status(200).json({ success: true });
   } catch (err) {
