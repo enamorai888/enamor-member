@@ -18,6 +18,7 @@ export default async function handler(req, res) {
   const welcomeMessage = `歡迎成為 EnamoR 恩娜茉兒的一員。\n\n很高興您在這裡。從現在起，每個月我們會透過 LINE 私訊發送專屬月禮連結，只有綁定會員才能收到，請保持好友狀態不要封鎖，避免錯失每月禮遇。\n\n這是您本月的會員月禮，專屬於您：\nhttps://enamor.cc/xZpUD`;
 
   try {
+    // 換 Shopify token
     const tokenRes = await fetch(
       `https://${domain}/admin/oauth/access_token`,
       {
@@ -39,6 +40,7 @@ export default async function handler(req, res) {
 
     const tag = `uid_line_${lineUID}`;
 
+    // 搜尋顧客
     const searchRes = await fetch(
       `https://${domain}/admin/api/2024-01/customers/search.json?query=email:${encodeURIComponent(email)}&fields=id,email,tags`,
       { headers: { 'X-Shopify-Access-Token': accessToken } }
@@ -49,6 +51,7 @@ export default async function handler(req, res) {
     let isFirstBind = true;
 
     if (!customers || customers.length === 0) {
+      // 找不到 → 建立新 customer，一定是第一次
       const createRes = await fetch(
         `https://${domain}/admin/api/2024-01/customers.json`,
         {
@@ -75,6 +78,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ success: false, message: '建立會員失敗' });
       }
     } else {
+      // 找到 → 判斷是否已綁定過
       const customer = customers[0];
       const existingTags = customer.tags ? customer.tags.split(', ') : [];
       isFirstBind = !existingTags.some(t => t.startsWith('uid_line_'));
@@ -101,6 +105,7 @@ export default async function handler(req, res) {
       }
     }
 
+    // 只有第一次綁定才推月禮
     if (isFirstBind) {
       await fetch('https://api.line.me/v2/bot/message/push', {
         method: 'POST',
