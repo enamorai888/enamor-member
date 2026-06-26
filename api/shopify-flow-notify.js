@@ -1,7 +1,7 @@
 // api/shopify-flow-notify.js
 // 部署位置：enamorai888/enamor-member → api/shopify-flow-notify.js
-// 用途：接收 Shopify Flow 的 webhook，依事件類型推對應的 LINE 訊息（LTV 飛輪 A-G）
-// 最後更新：2026-06-25
+// 用途：接收 Shopify Flow 的 webhook，依事件類型推對應的 LINE 訊息（LTV 飛輪 A-G + 棄單）
+// 最後更新：2026-06-26
 
 const LINE_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
@@ -61,9 +61,13 @@ async function sendLine(uid, message) {
   return res.ok;
 }
 
-// A-G 七條文案
+// A-G 七條飛輪文案 + 棄單
 function buildMessage(event_type) {
   switch (event_type) {
+
+    // 棄單提醒
+    case 'abandoned_cart':
+      return `妳剛剛的購物車還在等妳 👀\n\n剛才沒結帳沒關係，庫存幫妳留著——但熱門尺寸跑得很快，趁現在回來完成訂單：\nhttps://enamorshop.com/checkouts`;
 
     // A｜EnTry99首購 → 沐浴乳（30天）
     case 'entry_to_care':
