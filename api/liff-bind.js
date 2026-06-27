@@ -29,6 +29,7 @@ export default async function handler(req, res) {
   const flywheelTag = (TAG_MAP[stage] && TAG_MAP[stage][track]) ? TAG_MAP[stage][track] : ('Flywheel_' + track + '_' + stage);
   const uidTag = 'uid_line_' + lineUID;
 
+  // ── 寫 Google Sheet（去重：找到同 lineUID 就更新，沒有才新增）──
   async function writeSheet(status, errorMsg) {
     if (!sheetApi) return;
     try {
@@ -42,7 +43,8 @@ export default async function handler(req, res) {
           track: track,
           stage: stage,
           status: status,
-          errorMsg: errorMsg || ''
+          errorMsg: errorMsg || '',
+          upsert: true
         })
       });
     } catch (e) {
