@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   if (!lineUID) return res.status(400).json({ success: false, message: '缺少 lineUID' });
   if (stage === 'join' && !email) return res.status(400).json({ success: false, message: '缺少 email' });
 
-  const domain       = process.env.SHOPIFY_DOMAIN;
+  const domain       = process.env.SHOPIFY_DOMAIN;h
   const clientId     = process.env.SHOPIFY_CLIENT_ID;
   const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
   const lineToken    = process.env.LINE_CHANNEL_ACCESS_TOKEN;
@@ -96,9 +96,9 @@ export default async function handler(req, res) {
       isFirstBind        = !existingTags.some(t => t.startsWith('uid_line_'));
 
       const mergedTags = [
-        ...existingTags.filter(t => !t.startsWith('uid_line_')),
+        ...existingTags.filter(t => !t.startsWith('uid_line_') && t !== flywheelTag),
         uidTag,
-        ...(existingTags.includes(flywheelTag) ? [] : [flywheelTag])
+        flywheelTag
       ].join(', ');
 
       const updateRes = await fetch(`https://${domain}/admin/api/2024-01/customers/${customer.id}.json`, {
