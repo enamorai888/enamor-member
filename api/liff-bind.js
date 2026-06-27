@@ -26,10 +26,11 @@ export default async function handler(req, res) {
     cool: { lycra_free: 'Flywheel_Lycra_Cool', fortune_test: 'Flywheel_Fortune_Cool' },
     join: { lycra_free: 'Flywheel_Lycra_Join', fortune_test: 'Flywheel_Fortune_Join' }
   };
-  const flywheelTag = (TAG_MAP[stage] && TAG_MAP[stage][track]) ? TAG_MAP[stage][track] : ('Flywheel_' + track + '_' + stage);
+  const flywheelTag = (TAG_MAP[stage] && TAG_MAP[stage][track])
+    ? TAG_MAP[stage][track]
+    : ('Flywheel_' + track + '_' + stage);
   const uidTag = 'uid_line_' + lineUID;
 
-  // ── 寫 Google Sheet ──
   async function writeSheet(status, errorMsg) {
     if (!sheetApi) return;
     try {
@@ -52,13 +53,11 @@ export default async function handler(req, res) {
     }
   }
 
-  // 冷客階段直接放行，極致節省 Shopify API 資源
   if (stage === 'cool') {
     await writeSheet('success', '');
     return res.status(200).json({ success: true });
   }
 
-  // ── 換取 Shopify Access Token ──
   let accessToken;
   try {
     const tokenRes = await fetch('https://' + domain + '/admin/oauth/access_token', {
@@ -81,7 +80,6 @@ export default async function handler(req, res) {
   const welcomeMessage = '歡迎成為 EnamoR 恩娜茉兒的一員。\n\n很高興您在這裡。從現在起，每個月我們會透過 LINE 私訊發送專屬月禮連結，只有綁定會員才能收到，請保持好友狀態不要封鎖，避免錯失每月禮遇。\n\n這是您本月的會員月禮，專屬於您：\nhttps://enamor.cc/xZpUD';
 
   try {
-    // 升級 API 版本至穩定版 2026-01
     const searchRes = await fetch(
       'https://' + domain + '/admin/api/2026-01/customers/search.json?query=email:' + encodeURIComponent(email) + '&fields=id,email,tags',
       { headers: { 'X-Shopify-Access-Token': accessToken } }
@@ -92,14 +90,13 @@ export default async function handler(req, res) {
     let isFirstBind = true;
 
     if (!customers || customers.length === 0) {
-      // 1. 新客：直接建立並打上 Flow Tags
       const createRes = await fetch('https://' + domain + '/admin/api/2026-01/customers.json', {
         method: 'POST',
         headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer: {
             email: email,
-            tags: uidTag + ', ' + flywheelTag,
+            tags: uidTag + ',' + flywheelTag,
             email_marketing_consent: { state: 'not_subscribed', opt_in_level: 'single_opt_in' }
           }
         })
@@ -108,18 +105,19 @@ export default async function handler(req, res) {
       if (!createData.customer) throw new Error('建立顧客失敗: ' + JSON.stringify(createData));
 
     } else {
-      // 2. 舊客／重複綁定客：安全地追加標籤，絕不覆蓋舊有資產
       const customer = customers[0];
-      const existingTags = customer.tags ? customer.tags.split(',').map(t => t.trim()) : [];
-      
+      let existingTags = [];
+      if (customer.tags) {
+        existingTags = customer.tags.split(/,\s*/).map(function(t) { return t.trim(); });
+      }
       isFirstBind = !existingTags.some(function(t) { return t.startsWith('uid_line_'); });
 
-      // 保留所有無關新標籤的舊標籤（如 VIP、Ambassador 分潤標籤），完成安全去重
-      const otherTags = existingTags.filter(function(t) { 
-        return t !== uidTag && t !== flywheelTag; 
-      });
-      
-      const mergedTags = otherTags.concat([uidTag, flywheelTag]).join(', ');
+      const tagSet = new Set(existingTags);
+      tagSet.add(uidTag);
+      tagSet.add(flywheelTag);
+      const mergedTags = Array.from(tagSet).filter(function(t) { return t.length > 0; }).join(',');
+
+      console.log('舊客更新標籤：', mergedTags);
 
       const updateRes = await fetch('https://' + domain + '/admin/api/2026-01/customers/' + customer.id + '.json', {
         method: 'PUT',
@@ -128,11 +126,10 @@ export default async function handler(req, res) {
       });
       if (!updateRes.ok) {
         const errData = await updateRes.json();
-        throw new Error('更新標籤失敗: ' + JSON.stringify(errData));
+        throw new Error('舊客更新標籤失敗: ' + JSON.stringify(errData));
       }
     }
 
-    // 3. 首次綁定成功，發送 LINE 自動化會員禮簡訊
     if (isFirstBind) {
       await fetch('https://api.line.me/v2/bot/message/push', {
         method: 'POST',
