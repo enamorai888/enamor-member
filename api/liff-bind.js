@@ -1,181 +1,152 @@
-import fetch from 'node-fetch';
-
-// 1. 定義標籤對應表
-const TAG_MAP = {
-  cool: {
-    lycra_free: 'Flywheel_Lycra_Cool',
-    fortune_test: 'Flywheel_Fortune_Cool'
-  },
-  join: {
-    lycra_free: 'Flywheel_Lycra_Join',
-    fortune_test: 'Flywheel_Fortune_Join'
-  }
-};
-
 export default async function handler(req, res) {
-  // 允許跨域請求 (CORS)
-  res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+  const body = req.body || {};
+  const email = body.email ? body.email.trim() : '';
+  const lineUID = body.lineUID ? body.lineUID.trim() : '';
+  const track = body.track || 'lycra_free';
+  const stage = body.stage || 'join';
+
+  if (!lineUID) return res.status(400).json({ success: false, message: '缺少 lineUID' });
+  if (stage === 'join' && !email) return res.status(400).json({ success: false, message: '缺少 email' });
+
+  const domain       = process.env.SHOPIFY_DOMAIN;
+  const clientId     = process.env.SHOPIFY_CLIENT_ID;
+  const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
+  const lineToken    = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  const sheetApi     = process.env.GOOGLE_SHEET_WEBHOOK;
+
+  const timestamp = new Date().toISOString();
+
+  const TAG_MAP = {
+    cool: { lycra_free: 'Flywheel_Lycra_Cool', fortune_test: 'Flywheel_Fortune_Cool' },
+    join: { lycra_free: 'Flywheel_Lycra_Join', fortune_test: 'Flywheel_Fortune_Join' }
+  };
+  const flywheelTag = (TAG_MAP[stage] && TAG_MAP[stage][track])
+    ? TAG_MAP[stage][track]
+    : ('Flywheel_' + track + '_' + stage);
+  const uidTag = 'uid_line_' + lineUID;
+
+  async function writeSheet(status, errorMsg) {
+    if (!sheetApi) return;
+    try {
+      await fetch(sheetApi, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timestamp: timestamp,
+          email: email,
+          lineUID: lineUID,
+          track: track,
+          stage: stage,
+          status: status,
+          errorMsg: errorMsg || '',
+          upsert: true
+        })
+      });
+    } catch (e) {
+      console.error('Sheet error:', e.message);
+    }
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+  if (stage === 'cool') {
+    await writeSheet('success', '');
+    return res.status(200).json({ success: true });
   }
+
+  let accessToken;
+  try {
+    const tokenRes = await fetch('https://' + domain + '/admin/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'client_credentials'
+      })
+    });
+    const tokenData = await tokenRes.json();
+    accessToken = tokenData.access_token;
+    if (!accessToken) throw new Error(JSON.stringify(tokenData));
+  } catch (e) {
+    await writeSheet('failed', 'Token 換取失敗: ' + e.message);
+    return res.status(500).json({ success: false, message: '無法取得 Shopify token' });
+  }
+
+  const welcomeMessage = '歡迎成為 EnamoR 恩娜茉兒的一員。\n\n很高興您在這裡。從現在起，每個月我們會透過 LINE 私訊發送專屬月禮連結，只有綁定會員才能收到，請保持好友狀態不要封鎖，避免錯失每月禮遇。\n\n這是您本月的會員月禮，專屬於您：\nhttps://enamor.cc/xZpUD';
 
   try {
-    const { lineUID, email, track = 'lycra_free', stage = 'join' } = req.body;
-
-    if (!lineUID) {
-      return res.status(400).json({ success: false, message: '缺少 LINE UID' });
-    }
-    if (stage === 'join' && !email) {
-      return res.status(400).json({ success: false, message: '缺少 Email' });
-    }
-
-    // 從環境變數讀取憑證
-    const domain = process.env.SHOPIFY_DOMAIN;
-    const accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
-    const gasWebhookUrl = process.env.GOOGLE_SHEET_WEBHOOK;
-
-    // 決定這次要新增的標籤
-    const uidTag = `uid_line_${lineUID}`;
-    const flywheelTag = TAG_MAP[stage]?.[track] || `Flywheel_${track}_${stage}`;
+    const searchRes = await fetch(
+      'https://' + domain + '/admin/api/2026-01/customers/search.json?query=email:' + encodeURIComponent(email) + '&fields=id,email,tags',
+      { headers: { 'X-Shopify-Access-Token': accessToken } }
+    );
+    const searchData = await searchRes.json();
+    const customers = searchData.customers;
 
     let isFirstBind = true;
-    let statusText = '未知狀態';
 
-    // ==========================================
-    // 階段 A：如果是 cool 階段，免查詢直接進 GAS
-    // ==========================================
-    if (stage === 'cool') {
-      statusText = '冷客觸發';
-    } 
-    // ==========================================
-    // 階段 B：如果是 join 階段，執行 Shopify 與 GAS
-    // ==========================================
-    else {
-      // 1. 查詢 Shopify 是否已有該 Email 顧客
-      const searchRes = await fetch(`https://${domain}/admin/api/2026-01/customers/search.json?query=email:${email}`, {
-        method: 'GET',
-        headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' }
-      });
-
-      if (!searchRes.ok) {
-        const searchErr = await searchRes.json();
-        throw new Error(`Shopify 查詢失敗: ${JSON.stringify(searchErr)}`);
-      }
-
-      const searchData = await searchRes.json();
-      const customers = searchData.customers || [];
-
-      if (customers.length === 0) {
-        // 【新客註冊】
-        statusText = '新客註冊成功';
-        const createRes = await fetch(`https://${domain}/admin/api/2026-01/customers.json`, {
-          method: 'POST',
-          headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customer: {
-              email: email,
-              first_name: 'LINE用戶',
-              tags: `${uidTag},${flywheelTag}` // 新客直接給標準去空格標籤
-            }
-          })
-        });
-
-        if (!createRes.ok) {
-          const createErr = await createRes.json();
-          throw new Error(`Shopify 建立顧客失敗: ${JSON.stringify(createErr)}`);
-        }
-      } else {
-        // 【舊客/重複進人處理】無條件強制疊加標籤，打破死結
-        const customer = customers[0];
-        let existingTags = [];
-
-        // 精準清洗所有舊標籤，防止古怪格式干擾
-        if (customer.tags && typeof customer.tags === 'string') {
-          existingTags = customer.tags.split(',').map(t => t.trim());
-        }
-
-        // 判斷是否為這輩子第一次綁定 LINE
-        isFirstBind = !existingTags.some(t => t.startsWith('uid_line_'));
-        statusText = isFirstBind ? '舊客首次綁定' : '老客重複參加活動';
-
-        // 建立新標籤陣列，保留有價值的舊標籤
-        let finalTags = [];
-        for (let i = 0; i < existingTags.length; i++) {
-          if (existingTags[i].length > 0) {
-            finalTags.push(existingTags[i]);
+    if (!customers || customers.length === 0) {
+      const createRes = await fetch('https://' + domain + '/admin/api/2026-01/customers.json', {
+        method: 'POST',
+        headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer: {
+            email: email,
+            tags: uidTag + ',' + flywheelTag,
+            email_marketing_consent: { state: 'not_subscribed', opt_in_level: 'single_opt_in' }
           }
-        }
+        })
+      });
+      const createData = await createRes.json();
+      if (!createData.customer) throw new Error('建立顧客失敗: ' + JSON.stringify(createData));
 
-        // 檢查並強力疊加這次的新標籤（陣列中沒有才加，完美去重）
-        if (finalTags.indexOf(uidTag) === -1) {
-          finalTags.push(uidTag);
-        }
-        if (finalTags.indexOf(flywheelTag) === -1) {
-          finalTags.push(flywheelTag);
-        }
+    } else {
+      const customer = customers[0];
+      let existingTags = [];
+      if (customer.tags && typeof customer.tags === 'string') {
+        existingTags = customer.tags.split(',').map(function(t) { return t.trim(); });
+      }
+      isFirstBind = !existingTags.some(function(t) { return t.startsWith('uid_line_'); });
 
-        // 用標準的「純逗號、無空格」打包，強迫 Shopify 立刻固化儲存
-        const mergedTags = finalTags.join(',');
+      var finalTags = [];
+      for (var i = 0; i < existingTags.length; i++) {
+        if (existingTags[i].length > 0) finalTags.push(existingTags[i]);
+      }
+      if (finalTags.indexOf(uidTag) === -1) finalTags.push(uidTag);
+      if (finalTags.indexOf(flywheelTag) === -1) finalTags.push(flywheelTag);
 
-        const updateRes = await fetch(`https://${domain}/admin/api/2026-01/customers/${customer.id}.json`, {
-          method: 'PUT',
-          headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ customer: { id: customer.id, tags: mergedTags } })
-        });
+      const mergedTags = finalTags.join(',');
+      console.log('舊客更新標籤：', mergedTags);
 
-        if (!updateRes.ok) {
-          const updateErr = await updateRes.json();
-          throw new Error(`Shopify 舊客更新失敗: ${JSON.stringify(updateErr)}`);
-        }
+      const updateRes = await fetch('https://' + domain + '/admin/api/2026-01/customers/' + customer.id + '.json', {
+        method: 'PUT',
+        headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer: { id: customer.id, tags: mergedTags } })
+      });
+      if (!updateRes.ok) {
+        const errData = await updateRes.json();
+        throw new Error('舊客更新標籤失敗: ' + JSON.stringify(errData));
       }
     }
 
-    // ==========================================
-    // 階段 C：將數據打進 Google Sheet (GAS Webhook)
-    // ==========================================
-    if (gasWebhookUrl) {
-      try {
-        await fetch(gasWebhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            timestamp: new Date().toISOString(),
-            email: email || 'N/A',
-            lineUID: lineUID,
-            track: track,
-            stage: stage,
-            statusText: statusText
-          })
-        });
-      } catch (gasErr) {
-        console.error('Google Sheet 寫入失敗，但不阻斷前端流：', gasErr);
-      }
+    if (isFirstBind) {
+      await fetch('https://api.line.me/v2/bot/message/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + lineToken },
+        body: JSON.stringify({ to: lineUID, messages: [{ type: 'text', text: welcomeMessage }] })
+      });
     }
 
-    // 成功回傳給前端
-    return res.status(200).json({
-      success: true,
-      message: statusText,
-      isFirstBind: isFirstBind
-    });
+    await writeSheet('success', '');
+    return res.status(200).json({ success: true });
 
-  } catch (error) {
-    console.error('API 崩潰錯誤記錄:', error);
-    return res.status(500).json({
-      success: false,
-      message: `伺服器出錯: ${error.message}`
-    });
+  } catch (err) {
+    console.error('liff-bind error:', err.message);
+    await writeSheet('failed', err.message);
+    return res.status(500).json({ success: false, message: '系統錯誤' });
   }
 }
