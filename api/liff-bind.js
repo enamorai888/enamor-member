@@ -23,9 +23,18 @@ export default async function handler(req, res) {
   const timestamp = new Date().toISOString();
 
   const TAG_MAP = {
-    cool: { lycra_free: 'Flywheel_Lycra_Cool', fortune_test: 'Flywheel_Fortune_Cool' },
-    join: { lycra_free: 'Flywheel_Lycra_Join', fortune_test: 'Flywheel_Fortune_Join' }
+    cool: {
+      lycra_free:      'Flywheel_Gift_Cool',
+      fortune_test:    'Flywheel_Fortune_Cool',
+      ambassador_cold: 'Flywheel_Ambassador_Cool'
+    },
+    join: {
+      lycra_free:      'Flywheel_Gift_Join',
+      fortune_test:    'Flywheel_Fortune_Join',
+      ambassador_cold: 'Flywheel_Ambassador_Join'
+    }
   };
+
   const flywheelTag = (TAG_MAP[stage] && TAG_MAP[stage][track])
     ? TAG_MAP[stage][track]
     : ('Flywheel_' + track + '_' + stage);
@@ -38,14 +47,8 @@ export default async function handler(req, res) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          timestamp: timestamp,
-          email: email,
-          lineUID: lineUID,
-          track: track,
-          stage: stage,
-          status: status,
-          errorMsg: errorMsg || '',
-          upsert: true
+          timestamp, email, lineUID, track, stage,
+          status, errorMsg: errorMsg || '', upsert: true
         })
       });
     } catch (e) {
@@ -70,6 +73,7 @@ export default async function handler(req, res) {
       })
     });
     const tokenData = await tokenRes.json();
+    console.log('Token 結果：', JSON.stringify(tokenData));
     accessToken = tokenData.access_token;
     if (!accessToken) throw new Error(JSON.stringify(tokenData));
   } catch (e) {
@@ -77,7 +81,21 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, message: '無法取得 Shopify token' });
   }
 
-  const welcomeMessage = '歡迎成為 EnamoR 恩娜茉兒的一員。\n\n很高興您在這裡。從現在起，每個月我們會透過 LINE 私訊發送專屬月禮連結，只有綁定會員才能收到，請保持好友狀態不要封鎖，避免錯失每月禮遇。\n\n這是您本月的會員月禮，專屬於您：\nhttps://enamor.cc/xZpUD';
+  // 歡迎訊息從 GAS 文案庫查（welcome_Gift 或 welcome_fortune）
+  async function getWelcomeMessage(event_type) {
+    if (!sheetApi) return null;
+    try {
+      const res = await fetch(sheetApi, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_message', event_type })
+      });
+      const data = await res.json();
+      return data.success ? data.message : null;
+    } catch (e) {
+      return null;
+    }
+  }
 
   try {
     const searchRes = await fetch(
@@ -85,6 +103,7 @@ export default async function handler(req, res) {
       { headers: { 'X-Shopify-Access-Token': accessToken } }
     );
     const searchData = await searchRes.json();
+    console.log('搜尋結果：', JSON.stringify(searchData).substring(0, 200));
     const customers = searchData.customers;
 
     let isFirstBind = true;
@@ -95,22 +114,23 @@ export default async function handler(req, res) {
         headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer: {
-            email: email,
+            email,
             tags: uidTag + ',' + flywheelTag,
             email_marketing_consent: { state: 'not_subscribed', opt_in_level: 'single_opt_in' }
           }
         })
       });
       const createData = await createRes.json();
+      console.log('建立顧客結果：', JSON.stringify(createData).substring(0, 200));
       if (!createData.customer) throw new Error('建立顧客失敗: ' + JSON.stringify(createData));
 
     } else {
       const customer = customers[0];
       let existingTags = [];
       if (customer.tags && typeof customer.tags === 'string') {
-        existingTags = customer.tags.split(',').map(function(t) { return t.trim(); });
+        existingTags = customer.tags.split(',').map(t => t.trim());
       }
-      isFirstBind = !existingTags.some(function(t) { return t.startsWith('uid_line_'); });
+      isFirstBind = !existingTags.some(t => t.startsWith('uid_line_'));
 
       var finalTags = [];
       for (var i = 0; i < existingTags.length; i++) {
@@ -127,18 +147,22 @@ export default async function handler(req, res) {
         headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ customer: { id: customer.id, tags: mergedTags } })
       });
-      if (!updateRes.ok) {
-        const errData = await updateRes.json();
-        throw new Error('舊客更新標籤失敗: ' + JSON.stringify(errData));
-      }
+      const updateData = await updateRes.json();
+      console.log('更新結果：', JSON.stringify(updateData).substring(0, 200));
+      if (!updateRes.ok) throw new Error('舊客更新標籤失敗: ' + JSON.stringify(updateData));
     }
 
+    // 第一次綁定才推歡迎訊息
     if (isFirstBind) {
-      await fetch('https://api.line.me/v2/bot/message/push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + lineToken },
-        body: JSON.stringify({ to: lineUID, messages: [{ type: 'text', text: welcomeMessage }] })
-      });
+      const welcomeEventType = track === 'fortune_test' ? 'welcome_fortune' : 'welcome_Gift';
+      const welcomeMessage = await getWelcomeMessage(welcomeEventType);
+      if (welcomeMessage) {
+        await fetch('https://api.line.me/v2/bot/message/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + lineToken },
+          body: JSON.stringify({ to: lineUID, messages: [{ type: 'text', text: welcomeMessage }] })
+        });
+      }
     }
 
     await writeSheet('success', '');
