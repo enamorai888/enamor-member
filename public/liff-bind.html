@@ -34,7 +34,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 32px 20px 48px;
+      padding: 20px 20px 32px;
     }
 
     .card {
@@ -42,7 +42,7 @@
       max-width: 420px;
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: 16px;
     }
 
     .wordmark {
@@ -59,10 +59,11 @@
 
     .hero-photo {
       width: 100%;
-      aspect-ratio: 1 / 1.05;
+      aspect-ratio: 1 / 0.72;
       border-radius: var(--radius);
       overflow: hidden;
       box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      position: relative;
     }
     .hero-photo img {
       width: 100%;
@@ -169,12 +170,20 @@
 
     .footer-note {
       text-align: center;
-      background: var(--card-bg);
+      background: rgba(239, 233, 221, 0.92);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
       border-radius: 20px;
-      padding: 10px 16px;
-      font-size: 12.5px;
+      padding: 8px 16px;
+      font-size: 12px;
       color: var(--ink-2);
       line-height: 1.5;
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 24px);
+      white-space: nowrap;
     }
 
     .success-block {
@@ -263,6 +272,7 @@
 
     <div class="hero-photo">
       <img src="https://cdn.shopify.com/s/files/1/0673/5436/1904/files/a7ca85f1-fe49-4fdb-ad76-7cca0b376c03.jpg?v=1782875579" alt="EnamoR 貓咪執行長">
+      <div class="footer-note">★ 成功綁定不定期抽貓咪執行長親筆簽名照（電子檔）！</div>
     </div>
 
     <div class="title-block">
@@ -298,10 +308,6 @@
         <div id="msg-info"  class="msg msg-info"></div>
         <button class="btn-bind" id="btn-submit" disabled>確認綁定</button>
       </div>
-    </div>
-
-    <div class="footer-note">
-      ★ 成功綁定不定期抽貓咪執行長親筆簽名照（電子檔）！
     </div>
 
     <div class="success-block" id="success-block">
