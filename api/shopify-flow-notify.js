@@ -1,7 +1,6 @@
 const LINE_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 const GAS_WEBHOOK = process.env.GOOGLE_SHEET_WEBHOOK;
 
-// event_type 對應延遲天數
 const EVENT_DELAY_DAYS = {
   flywheel_gift_30: 30,
   flywheel_gift_40: 40,
@@ -16,7 +15,6 @@ const EVENT_DELAY_DAYS = {
   flywheel_fortune_rescue: 0,
 };
 
-// 從 Shopify customer tags 抽出 LINE UID
 function extractLineUid(shopifyTags) {
   if (!shopifyTags) return null;
   try {
@@ -30,7 +28,6 @@ function extractLineUid(shopifyTags) {
   }
 }
 
-// 從 GAS 文案庫查對應文案
 async function getMessageFromSheet(event_type) {
   try {
     const res = await fetch(GAS_WEBHOOK, {
@@ -48,7 +45,27 @@ async function getMessageFromSheet(event_type) {
   }
 }
 
-// 寫入購買行為表（透過GAS）
+// ★ 去重檢查（10分鐘窗口）
+async function checkDuplicate(uid, event_type) {
+  try {
+    const res = await fetch(GAS_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'check_duplicate',
+        uid,
+        event_type,
+        window_minutes: 10
+      })
+    });
+    const data = await res.json();
+    return data.duplicate === true;
+  } catch (e) {
+    console.error('check_duplicate 失敗：', e.message);
+    return false; // 查詢失敗時不擋，讓它繼續發
+  }
+}
+
 async function writePurchase(uid, email, event_type, shopify_tags) {
   try {
     await fetch(GAS_WEBHOOK, {
@@ -67,7 +84,6 @@ async function writePurchase(uid, email, event_type, shopify_tags) {
   }
 }
 
-// 寫入推播任務表（透過GAS，場景B邏輯在GAS裡處理）
 async function writeTask(uid, event_type) {
   try {
     const delay_days = EVENT_DELAY_DAYS[event_type] ?? 30;
@@ -86,7 +102,6 @@ async function writeTask(uid, event_type) {
   }
 }
 
-// 沒有傳入 tags 時，用 email 查 Shopify customer
 async function getCustomerTags(email) {
   const domain = process.env.SHOPIFY_DOMAIN;
   const clientId = process.env.SHOPIFY_CLIENT_ID;
@@ -110,7 +125,6 @@ async function getCustomerTags(email) {
   return customers[0].tags;
 }
 
-// 發送 LINE push
 async function sendLine(uid, message) {
   const res = await fetch('https://api.line.me/v2/bot/message/push', {
     method: 'POST',
@@ -140,7 +154,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 取得 LINE UID
     const tags = shopify_tags || await getCustomerTags(email);
     const uid = extractLineUid(tags);
 
@@ -148,13 +161,20 @@ export default async function handler(req, res) {
       return res.status(200).json({ skipped: true, reason: 'no_line_uid' });
     }
 
-    // ★ 記錄購買行為和推播任務（平行執行，不阻塞推LINE）
+    // ★ 去重檢查：10分鐘內同一UID+event_type只發一次
+    const isDuplicate = await checkDuplicate(uid, event_type);
+    if (isDuplicate) {
+      console.log(`[去重] 跳過重複：${uid} - ${event_type}`);
+      return res.status(200).json({ skipped: true, reason: 'duplicate_within_10min' });
+    }
+
+    // 記錄購買行為和推播任務（平行執行）
     await Promise.all([
       writePurchase(uid, email, event_type, shopify_tags),
       writeTask(uid, event_type)
     ]);
 
-    // 從 GAS 文案庫查文案
+    // 查文案
     const message = await getMessageFromSheet(event_type);
     if (!message) {
       return res.status(200).json({ skipped: true, reason: 'message_not_found: ' + event_type });
