@@ -324,6 +324,7 @@
   const LIFF_ID  = '1656208126-fpNe2w28';
   const BIND_API = 'https://enamor-member.vercel.app/api/liff-bind';
   const VIP_URL  = 'https://enamorshop.com/collections/vip-secret';
+  const TRACK    = 'gift'; // 此頁面固定，不從 URL 參數讀取
 
   const overlay      = document.getElementById('loading-overlay');
   const emailInput   = document.getElementById('email-input');
@@ -396,7 +397,12 @@
       const res = await fetch(BIND_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, lineUID })
+        body: JSON.stringify({
+          email,
+          lineUID,
+          track: TRACK,  // 固定帶入
+          stage: 'join'  // 固定帶入
+        })
       });
       const data = await res.json();
 
