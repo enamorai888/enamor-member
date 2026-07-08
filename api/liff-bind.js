@@ -38,9 +38,7 @@ export default async function handler(req, res) {
   const flywheelTag = (TAG_MAP[stage] && TAG_MAP[stage][track])
     ? TAG_MAP[stage][track]
     : ('Flywheel_' + track + '_' + stage);
-  const uidTag = 'uid_line_' + lineUID;
-
-  // 此軌道的 Join tag，用來判斷是否此軌道首次綁定
+  const uidTag  = 'uid_line_' + lineUID;
   const boundTag = TAG_MAP['join'][track] || null;
 
   async function writeSheet(status, errorMsg) {
@@ -76,7 +74,6 @@ export default async function handler(req, res) {
       })
     });
     const tokenData = await tokenRes.json();
-    console.log('Token 結果：', JSON.stringify(tokenData));
     accessToken = tokenData.access_token;
     if (!accessToken) throw new Error(JSON.stringify(tokenData));
   } catch (e) {
@@ -115,30 +112,85 @@ export default async function handler(req, res) {
     }
   }
 
-  // LINE 推播非同步背景執行，不阻塞主流程回應
-  function sendWelcomeLine(uid, welcomeEventType) {
-    getWelcomeMessage(welcomeEventType).then(welcomeMessage => {
+  // LINE 推播：await 確保 Vercel serverless container 不會在送出 response 後凍結前被截斷
+  async function sendWelcomeLine(uid, welcomeEventType) {
+    try {
+      const welcomeMessage = await getWelcomeMessage(welcomeEventType);
       if (!welcomeMessage) return;
-      fetch('https://api.line.me/v2/bot/message/push', {
+      const lineRes = await fetch('https://api.line.me/v2/bot/message/push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + lineToken },
         body: JSON.stringify({ to: uid, messages: [{ type: 'text', text: welcomeMessage }] })
-      }).catch(e => console.error('LINE push error:', e.message));
-    }).catch(e => console.error('getWelcomeMessage error:', e.message));
+      });
+      if (!lineRes.ok) {
+        const errData = await lineRes.json();
+        console.error('LINE push error:', JSON.stringify(errData));
+      }
+    } catch (e) {
+      console.error('LINE push 流程錯誤:', e.message);
+    }
+  }
+
+  // 更新舊客，處理 email 衝突時退回只更新 tag
+  async function updateCustomer(customerId, payload) {
+    const updateRes = await fetch(
+      'https://' + domain + '/admin/api/2026-01/customers/' + customerId + '.json',
+      {
+        method: 'PUT',
+        headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer: payload })
+      }
+    );
+    const updateData = await updateRes.json();
+
+    if (!updateRes.ok) {
+      // email 被其他顧客佔用 → 退回只更新 tag
+      if (payload.email && JSON.stringify(updateData).includes('has already been taken')) {
+        console.warn('Email 衝突，退回只更新 tag');
+        const retryPayload = { ...payload };
+        delete retryPayload.email;
+        const retryRes = await fetch(
+          'https://' + domain + '/admin/api/2026-01/customers/' + customerId + '.json',
+          {
+            method: 'PUT',
+            headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customer: retryPayload })
+          }
+        );
+        if (!retryRes.ok) {
+          const retryData = await retryRes.json();
+          throw new Error('退回標籤更新失敗: ' + JSON.stringify(retryData));
+        }
+      } else {
+        throw new Error('舊客更新失敗: ' + JSON.stringify(updateData));
+      }
+    }
   }
 
   try {
-    const searchRes = await fetch(
-      'https://' + domain + '/admin/api/2026-01/customers/search.json?query=email:' + encodeURIComponent(email) + '&fields=id,email,tags',
+    let customers = [];
+
+    // 先用 uid_line_ tag 搜尋，解決舊客無 email 時找不到的問題
+    const tagSearchRes = await fetch(
+      'https://' + domain + '/admin/api/2026-01/customers/search.json?query=tag:' + uidTag + '&fields=id,email,tags',
       { headers: { 'X-Shopify-Access-Token': accessToken } }
     );
-    const searchData = await searchRes.json();
-    console.log('搜尋結果：', JSON.stringify(searchData).substring(0, 200));
-    const customers = searchData.customers;
+    const tagSearchData = await tagSearchRes.json();
+    customers = tagSearchData.customers || [];
+
+    // tag 找不到才用 email 搜尋
+    if (customers.length === 0 && email) {
+      const emailSearchRes = await fetch(
+        'https://' + domain + '/admin/api/2026-01/customers/search.json?query=email:' + encodeURIComponent(email) + '&fields=id,email,tags',
+        { headers: { 'X-Shopify-Access-Token': accessToken } }
+      );
+      const emailSearchData = await emailSearchRes.json();
+      customers = emailSearchData.customers || [];
+    }
 
     let isFirstBindOnThisTrack = true;
 
-    if (!customers || customers.length === 0) {
+    if (customers.length === 0) {
       // 新客人路徑：先查競態去重
       const alreadyBound = await isAlreadyBound(lineUID);
       if (alreadyBound) {
@@ -146,62 +198,58 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, note: 'duplicate_skipped' });
       }
 
-      // [修正] 改回 await，讓錯誤能被外層 try/catch 正確捕捉
       const createRes = await fetch('https://' + domain + '/admin/api/2026-01/customers.json', {
         method: 'POST',
         headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer: {
-            email,
+            email: email || undefined, // 防止空字串傳入 Shopify 報錯
             tags: uidTag + ',' + flywheelTag,
             email_marketing_consent: { state: 'not_subscribed', opt_in_level: 'single_opt_in' }
           }
         })
       });
       const createData = await createRes.json();
-      console.log('建立顧客結果：', JSON.stringify(createData).substring(0, 200));
-      if (!createData.customer) throw new Error('建立顧客失敗: ' + JSON.stringify(createData));
+      if (!createRes.ok || !createData.customer) {
+        throw new Error('建立顧客失敗: ' + JSON.stringify(createData));
+      }
 
     } else {
       const customer = customers[0];
-      let existingTags = [];
-      if (customer.tags && typeof customer.tags === 'string') {
-        existingTags = customer.tags.split(',').map(t => t.trim());
-      }
+      // split、trim、過濾空字串一步完成，杜絕殘缺 tag 格式
+      const finalTags = (customer.tags && typeof customer.tags === 'string')
+        ? customer.tags.split(',').map(t => t.trim()).filter(t => t.length > 0)
+        : [];
 
-      // [補強3] 跨軌道判斷：用此軌道的 Join tag 判斷是否首次，不再用 uid_line_
+      // 跨軌道判斷：用此軌道的 Join tag 判斷是否首次
       isFirstBindOnThisTrack = boundTag
-        ? !existingTags.includes(boundTag)
-        : !existingTags.some(t => t.startsWith('uid_line_'));
+        ? !finalTags.includes(boundTag)
+        : !finalTags.some(t => t.startsWith('uid_line_'));
 
-      const finalTags = existingTags.filter(t => t.length > 0);
-      if (!finalTags.includes(uidTag))      finalTags.push(uidTag);
-      if (!finalTags.includes(flywheelTag)) finalTags.push(flywheelTag);
+      let tagsChanged = false;
+      if (!finalTags.includes(uidTag))      { finalTags.push(uidTag);      tagsChanged = true; }
+      if (!finalTags.includes(flywheelTag)) { finalTags.push(flywheelTag); tagsChanged = true; }
 
-      // [補強4] 舊客補 email
-      const updatePayload = { id: customer.id, tags: finalTags.join(',') };
-      if (email && !customer.email) {
-        updatePayload.email = email;
-        console.log('舊客補 email：', email);
+      const shouldPopulateEmail = email && !customer.email;
+
+      // 標籤沒有變動且不需要補 email，跳過 Shopify PUT，省 API 額度
+      if (tagsChanged || shouldPopulateEmail) {
+        const updatePayload = { id: customer.id, tags: finalTags.join(',') };
+        if (shouldPopulateEmail) updatePayload.email = email;
+        await updateCustomer(customer.id, updatePayload);
+      } else {
+        console.log('顧客資料無變動，跳過 Shopify PUT');
       }
-
-      const updateRes = await fetch('https://' + domain + '/admin/api/2026-01/customers/' + customer.id + '.json', {
-        method: 'PUT',
-        headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer: updatePayload })
-      });
-      const updateData = await updateRes.json();
-      console.log('更新結果：', JSON.stringify(updateData).substring(0, 200));
-      if (!updateRes.ok) throw new Error('舊客更新失敗: ' + JSON.stringify(updateData));
     }
 
-    // [補強5] 首次綁定才推歡迎訊息，非同步不阻塞
+    // 此軌道首次綁定才推歡迎訊息
+    // await 確保 Vercel container 不在 response 後被凍結前截斷
     if (isFirstBindOnThisTrack) {
       const welcomeEventType = track === 'fortune' ? 'welcome_fortune' : 'welcome_Gift';
-      sendWelcomeLine(lineUID, welcomeEventType);
+      await sendWelcomeLine(lineUID, welcomeEventType);
     }
 
-    writeSheet('success', ''); // 非同步，不等
+    await writeSheet('success', '');
     return res.status(200).json({ success: true });
 
   } catch (err) {
