@@ -2,18 +2,44 @@ const LINE_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 const GAS_WEBHOOK = process.env.GOOGLE_SHEET_WEBHOOK;
 
 const EVENT_DELAY_DAYS = {
-  flywheel_gift_30: 30,
-  flywheel_gift_40: 40,
-  flywheel_care_21: 21,
-  zerotex_to_care: 90,
-  skin_to_care: 90,
-  skin_to_zerotex: 50,
-  entry_to_care: 30,
-  bra_to_care: 30,
-  bra_to_skin: 50,
-  flywheel_rescue: 0,
-  flywheel_fortune_rescue: 0,
+  flywheel_gift_30:        30,
+  flywheel_gift_40:        40,
+  flywheel_care_21:        21,
+  flywheel_fortune_rescue:  0,
+  zerotex_to_care:         90,
+  skin_to_care:            90,
+  skin_to_zerotex:         50,
+  entry_to_care:           30,
+  entry_to_skin:           50,
+  bra_to_care:             30,
+  bra_to_skin:             50,
+  value_low_rescue:         0,
+  value_vip_care:           0,
+  loyal_user_upgrade:       0,
+  ambassador_recruit:       0,
+  sleep_rescue:             0,
+  flywheel_rescue:          0, // Flow 已等 2hr
+  abandoned_cart:           0, // Flow 已等 1hr
 };
+
+const DEDUP_WINDOW_MINUTES = {
+  flywheel_rescue:         24 * 60,
+  abandoned_cart:          24 * 60,
+  flywheel_fortune_rescue: 24 * 60,
+  value_low_rescue:        24 * 60,
+  value_vip_care:          24 * 60,
+  flywheel_gift_30:        7 * 24 * 60,
+  flywheel_gift_40:        7 * 24 * 60,
+  flywheel_care_21:        7 * 24 * 60,
+  entry_to_care:           7 * 24 * 60,
+  entry_to_skin:           7 * 24 * 60,
+  bra_to_care:             7 * 24 * 60,
+  bra_to_skin:             7 * 24 * 60,
+  skin_to_care:            7 * 24 * 60,
+  skin_to_zerotex:         7 * 24 * 60,
+  zerotex_to_care:         7 * 24 * 60,
+};
+const DEFAULT_DEDUP_MINUTES = 24 * 60;
 
 function extractLineUid(shopifyTags) {
   if (!shopifyTags) return null;
@@ -22,7 +48,7 @@ function extractLineUid(shopifyTags) {
       ? shopifyTags
       : shopifyTags.split(',').map(t => t.trim());
     const tag = tags.find(t => t.startsWith('uid_line_'));
-    return tag ? tag.replace('uid_line_', '') : null;
+    return tag ? tag.replace('uid_line_', '').trim() : null;
   } catch (e) {
     return null;
   }
@@ -45,57 +71,46 @@ async function getMessageFromSheet(event_type) {
   }
 }
 
-// ★ 去重檢查（10分鐘窗口）
 async function checkDuplicate(uid, event_type) {
   try {
+    const window_minutes = DEDUP_WINDOW_MINUTES[event_type] || DEFAULT_DEDUP_MINUTES;
     const res = await fetch(GAS_WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'check_duplicate',
-        uid,
-        event_type,
-        window_minutes: 10
-      })
+      body: JSON.stringify({ action: 'check_duplicate', uid, event_type, window_minutes })
     });
     const data = await res.json();
     return data.duplicate === true;
   } catch (e) {
     console.error('check_duplicate 失敗：', e.message);
-    return false; // 查詢失敗時不擋，讓它繼續發
+    return false;
   }
 }
 
 async function writePurchase(uid, email, event_type, shopify_tags) {
   try {
+    let tagsStr = '';
+    if (Array.isArray(shopify_tags)) {
+      tagsStr = shopify_tags.join(',');
+    } else if (typeof shopify_tags === 'string') {
+      tagsStr = shopify_tags;
+    }
     await fetch(GAS_WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'write_purchase',
-        uid,
-        email,
-        event_type,
-        shopify_tags: shopify_tags || ''
-      })
+      body: JSON.stringify({ action: 'write_purchase', uid, email, event_type, shopify_tags: tagsStr })
     });
   } catch (e) {
     console.error('write_purchase 失敗：', e.message);
   }
 }
 
-async function writeTask(uid, event_type) {
+async function writeTask(uid, event_type, delay_days) {
   try {
-    const delay_days = EVENT_DELAY_DAYS[event_type] ?? 30;
     await fetch(GAS_WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'write_task',
-        uid,
-        event_type,
-        delay_days
-      })
+      body: JSON.stringify({ action: 'write_task', uid, event_type, delay_days })
     });
   } catch (e) {
     console.error('write_task 失敗：', e.message);
@@ -109,11 +124,7 @@ async function getCustomerTags(email) {
   const tokenRes = await fetch('https://' + domain + '/admin/oauth/access_token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: 'client_credentials'
-    })
+    body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, grant_type: 'client_credentials' })
   });
   const { access_token } = await tokenRes.json();
   const searchRes = await fetch(
@@ -128,14 +139,8 @@ async function getCustomerTags(email) {
 async function sendLine(uid, message) {
   const res = await fetch('https://api.line.me/v2/bot/message/push', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + LINE_TOKEN
-    },
-    body: JSON.stringify({
-      to: uid,
-      messages: [{ type: 'text', text: message }]
-    })
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + LINE_TOKEN },
+    body: JSON.stringify({ to: uid, messages: [{ type: 'text', text: message }] })
   });
   return res.ok;
 }
@@ -161,30 +166,37 @@ export default async function handler(req, res) {
       return res.status(200).json({ skipped: true, reason: 'no_line_uid' });
     }
 
-    // ★ 去重檢查：10分鐘內同一UID+event_type只發一次
     const isDuplicate = await checkDuplicate(uid, event_type);
     if (isDuplicate) {
-      console.log(`[去重] 跳過重複：${uid} - ${event_type}`);
-      return res.status(200).json({ skipped: true, reason: 'duplicate_within_10min' });
+      console.log(`[去重] 跳過：${uid} - ${event_type}`);
+      return res.status(200).json({ skipped: true, reason: 'duplicate' });
     }
 
-    // 記錄購買行為和推播任務（平行執行）
-    await Promise.all([
-      writePurchase(uid, email, event_type, shopify_tags),
-      writeTask(uid, event_type)
-    ]);
+    const delay_days = EVENT_DELAY_DAYS[event_type];
 
-    // 查文案
-    const message = await getMessageFromSheet(event_type);
-    if (!message) {
-      return res.status(200).json({ skipped: true, reason: 'message_not_found: ' + event_type });
+    if (delay_days && delay_days > 0) {
+      await Promise.all([
+        writePurchase(uid, email, event_type, tags),
+        writeTask(uid, event_type, delay_days)
+      ]);
+      console.log(`[排程] ${uid} - ${event_type} (${delay_days}天)`);
+      return res.status(200).json({ success: true, mode: 'delayed', event_type });
+
+    } else {
+      const [, message] = await Promise.all([
+        writePurchase(uid, email, event_type, tags),
+        getMessageFromSheet(event_type)
+      ]);
+
+      if (!message) {
+        return res.status(200).json({ skipped: true, reason: 'message_not_found: ' + event_type });
+      }
+
+      const sent = await sendLine(uid, message);
+      console.log('LINE 即時推播：', sent, '/ event_type：', event_type, '/ uid：', uid);
+      return res.status(200).json({ success: sent, mode: 'instant', event_type });
     }
 
-    // 推 LINE
-    const sent = await sendLine(uid, message);
-    console.log('LINE 推播結果：', sent, '/ event_type：', event_type, '/ uid：', uid);
-
-    return res.status(200).json({ success: sent, event_type });
   } catch (err) {
     console.error('shopify-flow-notify error:', err.message);
     return res.status(500).json({ error: err.message });
