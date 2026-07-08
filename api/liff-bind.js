@@ -40,8 +40,7 @@ export default async function handler(req, res) {
     : ('Flywheel_' + track + '_' + stage);
   const uidTag = 'uid_line_' + lineUID;
 
-  // 這個 track 對應的「已綁定過」tag，用來判斷是否此軌道的首次綁定
-  // gift → Flywheel_Gift_Join，fortune → Flywheel_Fortune_Join
+  // 此軌道的 Join tag，用來判斷是否此軌道首次綁定
   const boundTag = TAG_MAP['join'][track] || null;
 
   async function writeSheet(status, errorMsg) {
@@ -112,12 +111,11 @@ export default async function handler(req, res) {
       const data = await r.json();
       return data.success && data.duplicate;
     } catch (e) {
-      return false; // 查不到就放行，不誤擋
+      return false;
     }
   }
 
-  // LINE 推播：非同步背景執行，不阻塞主流程回應
-  // [補強5] 舊版 await 串行導致前端卡 2~3 秒，改為 .then() 背景處理
+  // LINE 推播非同步背景執行，不阻塞主流程回應
   function sendWelcomeLine(uid, welcomeEventType) {
     getWelcomeMessage(welcomeEventType).then(welcomeMessage => {
       if (!welcomeMessage) return;
@@ -148,7 +146,8 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, note: 'duplicate_skipped' });
       }
 
-      await fetch('https://' + domain + '/admin/api/2026-01/customers.json', {
+      // [修正] 改回 await，讓錯誤能被外層 try/catch 正確捕捉
+      const createRes = await fetch('https://' + domain + '/admin/api/2026-01/customers.json', {
         method: 'POST',
         headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -158,11 +157,10 @@ export default async function handler(req, res) {
             email_marketing_consent: { state: 'not_subscribed', opt_in_level: 'single_opt_in' }
           }
         })
-      }).then(async r => {
-        const d = await r.json();
-        console.log('建立顧客結果：', JSON.stringify(d).substring(0, 200));
-        if (!d.customer) throw new Error('建立顧客失敗: ' + JSON.stringify(d));
       });
+      const createData = await createRes.json();
+      console.log('建立顧客結果：', JSON.stringify(createData).substring(0, 200));
+      if (!createData.customer) throw new Error('建立顧客失敗: ' + JSON.stringify(createData));
 
     } else {
       const customer = customers[0];
@@ -171,16 +169,16 @@ export default async function handler(req, res) {
         existingTags = customer.tags.split(',').map(t => t.trim());
       }
 
-      // [補強3] 跨軌道判斷：不再用 uid_line_ 判斷是否首次綁定
-      // 改為判斷「此軌道的 Join tag」是否已存在
-      // 例：已有 Flywheel_Gift_Join 的人去玩 fortune，isFirstBindOnThisTrack 仍為 true
-      isFirstBindOnThisTrack = boundTag ? !existingTags.includes(boundTag) : !existingTags.some(t => t.startsWith('uid_line_'));
+      // [補強3] 跨軌道判斷：用此軌道的 Join tag 判斷是否首次，不再用 uid_line_
+      isFirstBindOnThisTrack = boundTag
+        ? !existingTags.includes(boundTag)
+        : !existingTags.some(t => t.startsWith('uid_line_'));
 
       const finalTags = existingTags.filter(t => t.length > 0);
       if (!finalTags.includes(uidTag))      finalTags.push(uidTag);
       if (!finalTags.includes(flywheelTag)) finalTags.push(flywheelTag);
 
-      // [補強4] 舊客補 email：若 Shopify 顧客資料沒有 email，這次填了就補進去
+      // [補強4] 舊客補 email
       const updatePayload = { id: customer.id, tags: finalTags.join(',') };
       if (email && !customer.email) {
         updatePayload.email = email;
@@ -197,14 +195,13 @@ export default async function handler(req, res) {
       if (!updateRes.ok) throw new Error('舊客更新失敗: ' + JSON.stringify(updateData));
     }
 
-    // [補強5] 此軌道首次綁定才推歡迎訊息，非同步背景執行不阻塞回應
+    // [補強5] 首次綁定才推歡迎訊息，非同步不阻塞
     if (isFirstBindOnThisTrack) {
       const welcomeEventType = track === 'fortune' ? 'welcome_fortune' : 'welcome_Gift';
       sendWelcomeLine(lineUID, welcomeEventType);
     }
 
-    // Shopify 處理完立即回應，不等 LINE 推播
-    writeSheet('success', ''); // 也不等 Sheet 寫入
+    writeSheet('success', ''); // 非同步，不等
     return res.status(200).json({ success: true });
 
   } catch (err) {
