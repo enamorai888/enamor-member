@@ -256,6 +256,24 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
   </style>
+
+  <!-- Meta Pixel -->
+  <script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '8168462463242848');
+  fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=8168462463242848&ev=PageView&noscript=1"
+  /></noscript>
+  <!-- End Meta Pixel -->
 </head>
 <body>
 
@@ -324,7 +342,11 @@
   const LIFF_ID  = '1656208126-fpNe2w28';
   const BIND_API = 'https://enamor-member.vercel.app/api/liff-bind';
   const VIP_URL  = 'https://enamorshop.com/collections/vip-secret';
-  const TRACK    = 'gift'; // 此頁面固定，不從 URL 參數讀取
+  const TRACK    = 'gift';
+
+  // 讀取 UTM source
+  const urlParams  = new URLSearchParams(window.location.search);
+  const UTM_SOURCE = urlParams.get('utm_source') || 'organic';
 
   const overlay      = document.getElementById('loading-overlay');
   const emailInput   = document.getElementById('email-input');
@@ -400,13 +422,17 @@
         body: JSON.stringify({
           email,
           lineUID,
-          track: TRACK,  // 固定帶入
-          stage: 'join'  // 固定帶入
+          track: TRACK,
+          stage: 'join'
         })
       });
       const data = await res.json();
 
       if (data.success) {
+        // 觸發 Pixel 綁定事件，帶入來源渠道
+        if (typeof fbq !== 'undefined') {
+          fbq('trackCustom', 'LineBinding', { source: UTM_SOURCE });
+        }
         bindForm.style.display = 'none';
         successBlock.classList.add('visible');
         setTimeout(() => { window.location.href = VIP_URL; }, 2500);
