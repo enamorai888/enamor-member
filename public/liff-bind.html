@@ -158,6 +158,14 @@
     .btn-bind:active:not(:disabled) { transform: scale(0.98); }
     .btn-bind:disabled { opacity: 0.4; cursor: default; }
 
+    .consent-note {
+      text-align: center;
+      font-size: 11px;
+      color: var(--ink-2);
+      line-height: 1.6;
+      margin-top: -4px;
+    }
+
     .msg {
       font-size: 13px;
       line-height: 1.6;
@@ -325,6 +333,7 @@
         <div id="msg-error" class="msg msg-error"></div>
         <div id="msg-info"  class="msg msg-info"></div>
         <button class="btn-bind" id="btn-submit" disabled>確認綁定</button>
+        <p class="consent-note">綁定即同意接收 EnamoR 會員電子報及優惠通知</p>
       </div>
     </div>
 
