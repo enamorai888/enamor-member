@@ -39,6 +39,7 @@ async function getMessageFromSheet(event_type) {
 // ── LINE 推播（單一 uid）──
 async function sendLine(uid, message) {
   try {
+    const lineId = uid.replace('uid_line_', ''); // 去掉前綴，LINE API 只需要 U 開頭的 ID
     const res = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
@@ -46,18 +47,18 @@ async function sendLine(uid, message) {
         'Authorization': 'Bearer ' + LINE_TOKEN
       },
       body: JSON.stringify({
-        to: uid,
+        to: lineId,
         messages: [{ type: 'text', text: message }]
       })
     });
     if (!res.ok) {
       const errData = await res.json();
-      console.error(`LINE Push 失敗 (${uid}):`, JSON.stringify(errData));
+      console.error(`LINE Push 失敗 (${lineId}):`, JSON.stringify(errData));
       return false;
     }
     return true;
   } catch (e) {
-    console.error(`LINE Push 網路錯誤 (${uid}):`, e.message);
+    console.error(`LINE Push 網路錯誤 (${lineId}):`, e.message);
     return false;
   }
 }
