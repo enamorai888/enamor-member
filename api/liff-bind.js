@@ -24,21 +24,21 @@ export default async function handler(req, res) {
 
   const TAG_MAP = {
     cool: {
-      gift:        'Flywheel_Gift_Cool',
-      fortune:     'Flywheel_Fortune_Cool',
-      ambassador:  'Flywheel_Ambassador_Cool'
+      gift:       'Flywheel_Gift_Cool',
+      fortune:    'Flywheel_Fortune_Cool',
+      ambassador: 'Flywheel_Ambassador_Cool'
     },
     join: {
-      gift:        'Flywheel_Gift_Join',
-      fortune:     'Flywheel_Fortune_Join',
-      ambassador:  'Flywheel_Ambassador_Join'
+      gift:       'Flywheel_Gift_Join',
+      fortune:    'Flywheel_Fortune_Join',
+      ambassador: 'Flywheel_Ambassador_Join'
     }
   };
 
   const flywheelTag = (TAG_MAP[stage] && TAG_MAP[stage][track])
     ? TAG_MAP[stage][track]
     : ('Flywheel_' + track + '_' + stage);
-  const uidTag   = 'uid_line_' + lineUID;
+  const uidTag  = 'uid_line_' + lineUID;
   const boundTag = TAG_MAP['join'][track] || null;
 
   async function writeSheet(status, errorMsg) {
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
   }
 
   if (stage === 'cool') {
-    writeSheet('success', '');
+    await writeSheet('success', '');
     return res.status(200).json({ success: true });
   }
 
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
     accessToken = tokenData.access_token;
     if (!accessToken) throw new Error(JSON.stringify(tokenData));
   } catch (e) {
-    writeSheet('failed', 'Token 換取失敗: ' + e.message);
+    await writeSheet('failed', 'Token 換取失敗: ' + e.message);
     return res.status(500).json({ success: false, message: '無法取得 Shopify token' });
   }
 
@@ -141,7 +141,7 @@ export default async function handler(req, res) {
         headers: {
           'Authorization': 'Klaviyo-API-Key ' + klaviyoKey,
           'Content-Type': 'application/json',
-          'revision': '2024-10-15'
+          'revision': '2024-02-15'
         },
         body: JSON.stringify({
           data: {
@@ -248,8 +248,6 @@ export default async function handler(req, res) {
         throw new Error('建立顧客失敗: ' + JSON.stringify(createData));
       }
 
-      isFirstBindOnThisTrack = true; // 新建立的顧客必然是首次綁定
-
     } else {
       const customer = customers[0];
       const finalTags = (customer.tags && typeof customer.tags === 'string')
@@ -275,21 +273,21 @@ export default async function handler(req, res) {
       }
     }
 
-    // 此軌道首次綁定才推歡迎訊息（非阻塞 / 背景發送即可）
+    // 此軌道首次綁定才推歡迎訊息
     if (isFirstBindOnThisTrack) {
       const welcomeEventType = track === 'fortune' ? 'welcome_fortune' : 'welcome_Gift';
-      sendWelcomeLine(lineUID, welcomeEventType);
+      await sendWelcomeLine(lineUID, welcomeEventType);
     }
 
-    // 非阻塞背景同步（不 await）
+    // Klaviyo 同步 line_uid（非阻塞，不等待結果）
     syncKlaviyoLineUid(email, lineUID);
-    writeSheet('success', '');
 
+    await writeSheet('success', '');
     return res.status(200).json({ success: true });
 
   } catch (err) {
     console.error('liff-bind error:', err.message);
-    writeSheet('failed', err.message);
+    await writeSheet('failed', err.message);
     return res.status(500).json({ success: false, message: '系統錯誤' });
   }
 }
