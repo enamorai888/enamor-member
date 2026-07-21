@@ -24,21 +24,21 @@ export default async function handler(req, res) {
 
   const TAG_MAP = {
     cool: {
-      gift:       'Flywheel_Gift_Cool',
-      fortune:    'Flywheel_Fortune_Cool',
-      ambassador: 'Flywheel_Ambassador_Cool'
+      gift:        'Flywheel_Gift_Cool',
+      fortune:     'Flywheel_Fortune_Cool',
+      ambassador:  'Flywheel_Ambassador_Cool'
     },
     join: {
-      gift:       'Flywheel_Gift_Join',
-      fortune:    'Flywheel_Fortune_Join',
-      ambassador: 'Flywheel_Ambassador_Join'
+      gift:        'Flywheel_Gift_Join',
+      fortune:     'Flywheel_Fortune_Join',
+      ambassador:  'Flywheel_Ambassador_Join'
     }
   };
 
   const flywheelTag = (TAG_MAP[stage] && TAG_MAP[stage][track])
     ? TAG_MAP[stage][track]
     : ('Flywheel_' + track + '_' + stage);
-  const uidTag  = 'uid_line_' + lineUID;
+  const uidTag   = 'uid_line_' + lineUID;
   const boundTag = TAG_MAP['join'][track] || null;
 
   async function writeSheet(status, errorMsg) {
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
   }
 
   if (stage === 'cool') {
-    await writeSheet('success', '');
+    writeSheet('success', '');
     return res.status(200).json({ success: true });
   }
 
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
     accessToken = tokenData.access_token;
     if (!accessToken) throw new Error(JSON.stringify(tokenData));
   } catch (e) {
-    await writeSheet('failed', 'Token 換取失敗: ' + e.message);
+    writeSheet('failed', 'Token 換取失敗: ' + e.message);
     return res.status(500).json({ success: false, message: '無法取得 Shopify token' });
   }
 
@@ -112,7 +112,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // LINE 推播：await 確保 Vercel serverless container 不會在送出 response 後凍結前被截斷
+  // LINE 推播
   async function sendWelcomeLine(uid, welcomeEventType) {
     try {
       const welcomeMessage = await getWelcomeMessage(welcomeEventType);
@@ -131,6 +131,41 @@ export default async function handler(req, res) {
     }
   }
 
+  // Klaviyo 同步 line_uid 進 profile（符合 2024-02-15+ API 規範）
+  async function syncKlaviyoLineUid(email, lineUID) {
+    const klaviyoKey = process.env.KLAVIYO_PRIVATE_KEY;
+    if (!klaviyoKey || !email) return;
+    try {
+      const response = await fetch('https://a.klaviyo.com/api/profiles/', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Klaviyo-API-Key ' + klaviyoKey,
+          'Content-Type': 'application/json',
+          'revision': '2024-02-15'
+        },
+        body: JSON.stringify({
+          data: {
+            type: 'profile',
+            attributes: {
+              email: email,
+              properties: {
+                line_uid: lineUID
+              }
+            }
+          }
+        })
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        console.error('[Klaviyo sync 失敗]', response.status, JSON.stringify(errData));
+      } else {
+        console.log('[Klaviyo] line_uid synced:', email, lineUID);
+      }
+    } catch (e) {
+      console.error('[Klaviyo sync 網路/系統錯誤]', e.message);
+    }
+  }
+
   // 更新舊客，處理 email 衝突時退回只更新 tag
   async function updateCustomer(customerId, payload) {
     const updateRes = await fetch(
@@ -144,7 +179,6 @@ export default async function handler(req, res) {
     const updateData = await updateRes.json();
 
     if (!updateRes.ok) {
-      // email 被其他顧客佔用 → 退回只更新 tag
       if (payload.email && JSON.stringify(updateData).includes('has already been taken')) {
         console.warn('Email 衝突，退回只更新 tag');
         const retryPayload = { ...payload };
@@ -170,7 +204,7 @@ export default async function handler(req, res) {
   try {
     let customers = [];
 
-    // 先用 uid_line_ tag 搜尋，解決舊客無 email 時找不到的問題
+    // 先用 uid_line_ tag 搜尋
     const tagSearchRes = await fetch(
       'https://' + domain + '/admin/api/2026-01/customers/search.json?query=tag:' + uidTag + '&fields=id,email,tags',
       { headers: { 'X-Shopify-Access-Token': accessToken } }
@@ -203,7 +237,7 @@ export default async function handler(req, res) {
         headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer: {
-            email: email || undefined, // 防止空字串傳入 Shopify 報錯
+            email: email || undefined,
             tags: uidTag + ',' + flywheelTag,
             email_marketing_consent: { state: 'not_subscribed', opt_in_level: 'single_opt_in' }
           }
@@ -214,14 +248,14 @@ export default async function handler(req, res) {
         throw new Error('建立顧客失敗: ' + JSON.stringify(createData));
       }
 
+      isFirstBindOnThisTrack = true; // 新建立的顧客必然是首次綁定
+
     } else {
       const customer = customers[0];
-      // split、trim、過濾空字串一步完成，杜絕殘缺 tag 格式
       const finalTags = (customer.tags && typeof customer.tags === 'string')
         ? customer.tags.split(',').map(t => t.trim()).filter(t => t.length > 0)
         : [];
 
-      // 跨軌道判斷：用此軌道的 Join tag 判斷是否首次
       isFirstBindOnThisTrack = boundTag
         ? !finalTags.includes(boundTag)
         : !finalTags.some(t => t.startsWith('uid_line_'));
@@ -232,7 +266,6 @@ export default async function handler(req, res) {
 
       const shouldPopulateEmail = email && !customer.email;
 
-      // 標籤沒有變動且不需要補 email，跳過 Shopify PUT，省 API 額度
       if (tagsChanged || shouldPopulateEmail) {
         const updatePayload = { id: customer.id, tags: finalTags.join(',') };
         if (shouldPopulateEmail) updatePayload.email = email;
@@ -242,19 +275,21 @@ export default async function handler(req, res) {
       }
     }
 
-    // 此軌道首次綁定才推歡迎訊息
-    // await 確保 Vercel container 不在 response 後被凍結前截斷
+    // 此軌道首次綁定才推歡迎訊息（非阻塞 / 背景發送即可）
     if (isFirstBindOnThisTrack) {
       const welcomeEventType = track === 'fortune' ? 'welcome_fortune' : 'welcome_Gift';
-      await sendWelcomeLine(lineUID, welcomeEventType);
+      sendWelcomeLine(lineUID, welcomeEventType);
     }
 
-    await writeSheet('success', '');
+    // 非阻塞背景同步（不 await）
+    syncKlaviyoLineUid(email, lineUID);
+    writeSheet('success', '');
+
     return res.status(200).json({ success: true });
 
   } catch (err) {
     console.error('liff-bind error:', err.message);
-    await writeSheet('failed', err.message);
+    writeSheet('failed', err.message);
     return res.status(500).json({ success: false, message: '系統錯誤' });
   }
 }
