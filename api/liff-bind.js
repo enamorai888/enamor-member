@@ -239,7 +239,7 @@ export default async function handler(req, res) {
           customer: {
             email: email || undefined,
             tags: uidTag + ',' + flywheelTag,
-            email_marketing_consent: { state: 'not_subscribed', opt_in_level: 'single_opt_in' }
+            email_marketing_consent: { state: 'subscribed', opt_in_level: 'single_opt_in' }
           }
         })
       });
