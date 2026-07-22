@@ -5,398 +5,270 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>妳的內著穿搭運勢｜ZERO-TEX</title>
 <script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
-  --ink: #1a1714;
-  --paper: #f7f4ef;
-  --warm: #e8e2d9;
-  --accent: #8b6f5e;
-  --black: #1C1C1A;
-  --skin: #C4A882;
-  --gray: #888780;
-  --mono: 'DM Mono', monospace;
-}
-
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+TC:wght@300;400;500&display=swap');
-
-background: var(--paper);
-  color: var(--ink);
+html, body {
+  width: 100%;
+  min-height: 100vh;
+  background: #f0ebe3;
   font-family: 'Noto Sans TC', sans-serif;
   font-weight: 300;
-  min-height: 100vh;
-  padding: 0;
 }
 
-/* ── SCREENS ── */
-.screen { min-height: 100vh; flex-direction: column; }
+/* 所有 screen 預設隱藏 */
+.screen {
+  display: none;
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  margin: 0 auto;
+  flex-direction: column;
+}
+
+/* 只有 active 才顯示 */
+.screen.active {
+  display: flex;
+}
 
 /* ── INTRO ── */
 #screen-intro {
   background: #F5F0E8;
-  background-image: 
-    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(28,28,26,0.06) 39px, rgba(28,28,26,0.06) 40px),
-    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(28,28,26,0.06) 39px, rgba(28,28,26,0.06) 40px);
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(28,28,26,.06) 39px, rgba(28,28,26,.06) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(28,28,26,.06) 39px, rgba(28,28,26,.06) 40px);
   align-items: center;
   justify-content: center;
-  padding: 60px 40px;
   text-align: center;
+  padding: 60px 36px;
   flex-direction: column;
 }
 
-.intro-logo {
-  height: 22px;
-  margin-bottom: 48px;
-  opacity: .85;
-}
+.intro-logo { height: 22px; margin-bottom: 52px; opacity: .85; display: block; }
 
 .intro-series {
-  font-family: var(--mono);
+  font-family: 'DM Mono', monospace;
   font-size: 10px;
   letter-spacing: .25em;
-  color: var(--accent);
+  color: #8B6F47;
   text-transform: uppercase;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .intro-title {
   font-size: 32px;
   font-weight: 300;
-  color: var(--ink);
-  line-height: 1.4;
-  margin-bottom: 16px;
+  color: #1a1714;
+  line-height: 1.45;
+  margin-bottom: 20px;
   letter-spacing: .02em;
 }
 
 .intro-sub {
   font-size: 13px;
   color: rgba(28,28,26,.45);
-  margin-bottom: 40px;
-  line-height: 1.7;
+  line-height: 1.8;
+  margin-bottom: 44px;
 }
 
 .intro-btn {
+  display: block;
   width: 100%;
   max-width: 260px;
-  padding: 15px 24px;
-  background: var(--ink);
+  padding: 15px 0;
+  background: #1a1714;
   border: none;
   color: #f5f0e8;
   font-size: 13px;
   letter-spacing: .12em;
   cursor: pointer;
-  border-radius: 2px;
-  font-family: var(--mono);
-  transition: all .2s;
+  font-family: 'DM Mono', monospace;
+  transition: opacity .2s;
 }
-.intro-btn:hover { opacity: .85; }
+.intro-btn:hover { opacity: .82; }
 
 /* ── QUIZ ── */
-#screen-quiz { background: var(--paper); padding: 0; }
+#screen-quiz {
+  background: #f7f4ef;
+  flex-direction: column;
+}
 
-.quiz-progress {
-  background: var(--ink);
-  padding: 16px 24px 14px;
+.quiz-bar {
+  background: #1a1714;
+  padding: 14px 20px;
   display: flex;
   align-items: center;
   gap: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  flex-shrink: 0;
 }
 
-.quiz-prog-bar {
+.quiz-bar-track {
   flex: 1;
   height: 2px;
-  background: rgba(240,235,227,.15);
+  background: rgba(255,255,255,.15);
   border-radius: 1px;
   overflow: hidden;
 }
 
-.quiz-prog-fill {
+.quiz-bar-fill {
   height: 100%;
-  background: var(--skin);
+  background: #C4A882;
   border-radius: 1px;
   transition: width .4s ease;
 }
 
-.quiz-prog-label {
-  font-family: var(--mono);
+.quiz-bar-label {
+  font-family: 'DM Mono', monospace;
   font-size: 11px;
-  color: rgba(240,235,227,.4);
+  color: rgba(255,255,255,.35);
   white-space: nowrap;
 }
 
-.quiz-body { display: flex; flex-direction: column; align-items: center; } padding: 32px 24px 40px; flex: 1; }
+.quiz-body { padding: 36px 24px 48px; flex: 1; }
 
-.quiz-q-num {
-  font-family: var(--mono);
+.quiz-qnum {
+  font-family: 'DM Mono', monospace;
   font-size: 10px;
   letter-spacing: .2em;
-  color: var(--accent);
+  color: #8B6F47;
   margin-bottom: 14px;
   text-transform: uppercase;
 }
 
-.quiz-q-text {
-  font-size: 20px;
+.quiz-qtxt {
+  font-size: 21px;
   font-weight: 400;
+  color: #1a1714;
   line-height: 1.5;
-  color: var(--ink);
   margin-bottom: 32px;
 }
 
-.quiz-options { display: flex; flex-direction: column; gap: 10px; }
+.quiz-opts { display: flex; flex-direction: column; gap: 10px; }
 
-.quiz-option {
-  padding: 16px 18px;
-  border: 1px solid var(--warm);
-  border-radius: 3px;
-  background: white;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--ink);
-  text-align: left;
-  transition: all .15s;
-  line-height: 1.5;
+.quiz-opt {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  padding: 15px 16px;
+  background: #fff;
+  border: 1px solid #e8e2d9;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #1a1714;
+  text-align: left;
+  line-height: 1.5;
+  transition: all .15s;
+  width: 100%;
 }
+.quiz-opt:hover { border-color: #8B6F47; background: #faf7f3; }
+.quiz-opt.picked { background: #1a1714; border-color: #1a1714; color: #f5f0e8; }
 
-.quiz-option:hover {
-  border-color: var(--accent);
-  background: #faf7f3;
-}
-
-.quiz-option.selected {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: #f0ebe3;
-}
-
-.quiz-option .opt-label {
-  font-family: var(--mono);
+.opt-lbl {
+  font-family: 'DM Mono', monospace;
   font-size: 11px;
-  color: var(--accent);
+  color: #8B6F47;
   flex-shrink: 0;
   padding-top: 2px;
 }
-
-.quiz-option.selected .opt-label { color: var(--skin); }
-
-/* ── GATE (綁定牆) ── */
-#screen-gate {
-  background: var(--ink);
-  align-items: center;
-  justify-content: center;
-  padding: 40px 28px;
-  text-align: center;
-}
-
-.gate-icon {
-  width: 56px;
-  height: 56px;
-  border: 1px solid rgba(240,235,227,.2);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 28px;
-  font-size: 22px;
-}
-
-.gate-title {
-  font-size: 22px;
-  font-weight: 300;
-  color: #f0ebe3;
-  margin-bottom: 12px;
-  line-height: 1.5;
-}
-
-.gate-sub {
-  font-size: 13px;
-  color: rgba(240,235,227,.5);
-  margin-bottom: 40px;
-  line-height: 1.8;
-}
-
-.gate-btn {
-  width: 100%;
-  max-width: 280px;
-  padding: 16px;
-  background: var(--skin);
-  border: none;
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: .08em;
-  cursor: pointer;
-  border-radius: 2px;
-  font-family: var(--mono);
-  margin-bottom: 14px;
-  transition: opacity .15s;
-}
-.gate-btn:hover { opacity: .88; }
-
-.gate-skip {
-  font-size: 11px;
-  color: rgba(240,235,227,.3);
-  cursor: pointer;
-  font-family: var(--mono);
-  letter-spacing: .05em;
-  background: none;
-  border: none;
-  padding: 8px;
-}
-
-/* ── RESULT ── */
-#screen-result { background: var(--paper); }
-
-.result-hero {
-  height: 260px;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: flex-end;
-  padding: 24px;
-}
-
-.result-hero-bg {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-}
-
-.result-hero-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(28,28,26,.85) 40%, transparent);
-}
-
-.result-hero-content { position: relative; z-index: 2; }
-
-.result-color-tag {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: .2em;
-  color: var(--skin);
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.result-name {
-  font-size: 28px;
-  font-weight: 300;
-  color: #f0ebe3;
-  line-height: 1.3;
-}
-
-.result-body { display: flex; flex-direction: column; align-items: center; } padding: 28px 24px 40px; }
-
-.result-quote {
-  font-size: 15px;
-  color: var(--ink);
-  line-height: 1.8;
-  padding: 20px;
-  border-left: 2px solid var(--accent);
-  background: white;
-  border-radius: 0 3px 3px 0;
-  margin-bottom: 24px;
-}
-
-.result-desc {
-  font-size: 13.5px;
-  color: #5a5550;
-  line-height: 1.9;
-  margin-bottom: 32px;
-}
-
-.result-cta-label {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: .2em;
-  color: var(--accent);
-  text-transform: uppercase;
-  margin-bottom: 14px;
-}
-
-.result-cta-btn {
-  width: 100%;
-  padding: 18px;
-  background: var(--ink);
-  border: none;
-  color: #f0ebe3;
-  font-size: 14px;
-  letter-spacing: .08em;
-  cursor: pointer;
-  border-radius: 2px;
-  font-family: 'Noto Sans TC', sans-serif;
-  font-weight: 400;
-  margin-bottom: 12px;
-  transition: opacity .15s;
-}
-.result-cta-btn:hover { opacity: .85; }
-
-.result-share-btn {
-  width: 100%;
-  padding: 14px;
-  background: transparent;
-  border: 1px solid var(--warm);
-  color: var(--accent);
-  font-size: 13px;
-  letter-spacing: .05em;
-  cursor: pointer;
-  border-radius: 2px;
-  font-family: var(--mono);
-  transition: all .15s;
-}
-.result-share-btn:hover { border-color: var(--accent); }
+.quiz-opt.picked .opt-lbl { color: #C4A882; }
 
 /* ── LOADING ── */
 #screen-loading {
-  background: var(--ink);
+  background: #1a1714;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
 }
 
-.loading-dot {
-  display: flex;
-  gap: 8px;
-}
-
-.loading-dot span {
-  width: 8px;
-  height: 8px;
+.loading-dots { display: flex; gap: 8px; }
+.loading-dots span {
+  width: 8px; height: 8px;
   border-radius: 50%;
-  background: var(--skin);
-  animation: dotPulse 1.2s ease infinite;
+  background: #C4A882;
+  animation: dp 1.2s ease infinite;
+}
+.loading-dots span:nth-child(2) { animation-delay: .2s; }
+.loading-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes dp { 0%,80%,100%{opacity:.2;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
+
+/* ── GATE ── */
+#screen-gate {
+  background: #1a1714;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 48px 32px;
 }
 
-.loading-dot span:nth-child(2) { animation-delay: .2s; }
-.loading-dot span:nth-child(3) { animation-delay: .4s; }
-
-@keyframes dotPulse {
-  0%, 80%, 100% { opacity: .2; transform: scale(.8); }
-  40% { opacity: 1; transform: scale(1); }
+.gate-icon { font-size: 24px; margin-bottom: 28px; }
+.gate-title { font-size: 22px; font-weight: 300; color: #f0ebe3; margin-bottom: 12px; line-height: 1.5; }
+.gate-sub { font-size: 13px; color: rgba(240,235,227,.5); margin-bottom: 40px; line-height: 1.8; }
+.gate-btn {
+  width: 100%; max-width: 260px; padding: 15px 0;
+  background: #C4A882; border: none; color: #1a1714;
+  font-size: 13px; font-weight: 500; letter-spacing: .08em;
+  cursor: pointer; font-family: 'DM Mono', monospace;
+  margin-bottom: 14px; transition: opacity .15s;
+}
+.gate-btn:hover { opacity: .88; }
+.gate-skip {
+  font-size: 11px; color: rgba(240,235,227,.3);
+  cursor: pointer; font-family: 'DM Mono', monospace;
+  background: none; border: none; padding: 8px; letter-spacing: .05em;
 }
 
-/* ── UTILS ── */
-.hidden { display: none !important; }
+/* ── RESULT ── */
+#screen-result {
+  background: #f7f4ef;
+  flex-direction: column;
+}
 
-/* 桌機置中 */
-body { margin: 0; }
-.screen { width: 100%; max-width: 480px; margin: 0 auto; display: none; }
-.screen.active { display: flex; }
+.result-hero {
+  height: 260px; position: relative; overflow: hidden;
+  display: flex; align-items: flex-end; padding: 24px; flex-shrink: 0;
+}
+.result-hero-bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+.result-hero-ovl { position: absolute; inset: 0; background: linear-gradient(to top, rgba(28,28,26,.88) 40%, transparent); }
+.result-hero-content { position: relative; z-index: 2; }
+.result-color-tag { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .2em; color: #C4A882; text-transform: uppercase; margin-bottom: 8px; }
+.result-name { font-size: 26px; font-weight: 300; color: #f0ebe3; line-height: 1.3; }
+
+.result-body { padding: 28px 24px 48px; }
+.result-quote {
+  font-size: 15px; color: #1a1714; line-height: 1.8;
+  padding: 18px 20px; border-left: 2px solid #8B6F47;
+  background: #fff; margin-bottom: 22px;
+}
+.result-desc { font-size: 13.5px; color: #5a5550; line-height: 1.9; margin-bottom: 32px; }
+.result-cta-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .2em; color: #8B6F47; text-transform: uppercase; margin-bottom: 14px; }
+.result-cta-btn {
+  display: block; width: 100%; padding: 17px;
+  background: #1a1714; border: none; color: #f0ebe3;
+  font-size: 14px; letter-spacing: .08em; cursor: pointer;
+  font-family: 'Noto Sans TC', sans-serif; font-weight: 400;
+  margin-bottom: 12px; transition: opacity .15s;
+}
+.result-cta-btn:hover { opacity: .85; }
+.result-share-btn {
+  display: block; width: 100%; padding: 13px;
+  background: transparent; border: 1px solid #e8e2d9; color: #8B6F47;
+  font-size: 13px; letter-spacing: .05em; cursor: pointer;
+  font-family: 'DM Mono', monospace; transition: all .15s;
+}
+.result-share-btn:hover { border-color: #8B6F47; }
 </style>
 </head>
 <body>
 
 <!-- INTRO -->
 <div id="screen-intro" class="screen active">
-  <img class="intro-logo" src="https://raw.githubusercontent.com/enamorai888/enamor-line-bot/main/public/EnamoR-logo-PNG-LOGO-B.png" alt="EnamoR" onerror="this.style.display='none'">
+  <img class="intro-logo"
+    src="https://raw.githubusercontent.com/enamorai888/enamor-line-bot/main/public/EnamoR-logo-PNG-LOGO-B.png"
+    alt="EnamoR"
+    onerror="this.style.display='none'">
   <div class="intro-series">ZERO-TEX · 萊卡抗菌系列</div>
   <h1 class="intro-title">妳的內著<br>穿搭運勢</h1>
   <p class="intro-sub">5 個問題<br>找出最適合妳的那個色</p>
@@ -405,27 +277,25 @@ body { margin: 0; }
 
 <!-- QUIZ -->
 <div id="screen-quiz" class="screen">
-  <div class="quiz-progress">
-    <div class="quiz-prog-bar">
-      <div class="quiz-prog-fill" id="progFill" style="width:0%"></div>
+  <div class="quiz-bar">
+    <div class="quiz-bar-track">
+      <div class="quiz-bar-fill" id="progFill" style="width:0%"></div>
     </div>
-    <div class="quiz-prog-label" id="progLabel">1 / 5</div>
+    <div class="quiz-bar-label" id="progLabel">1 / 5</div>
   </div>
   <div class="quiz-body">
-    <div class="quiz-q-num" id="qNum">Q1</div>
-    <div class="quiz-q-text" id="qText"></div>
-    <div class="quiz-options" id="qOptions"></div>
+    <div class="quiz-qnum" id="qNum">Q1</div>
+    <div class="quiz-qtxt" id="qTxt"></div>
+    <div class="quiz-opts" id="qOpts"></div>
   </div>
 </div>
 
 <!-- LOADING -->
 <div id="screen-loading" class="screen">
-  <div class="loading-dot">
-    <span></span><span></span><span></span>
-  </div>
+  <div class="loading-dots"><span></span><span></span><span></span></div>
 </div>
 
-<!-- GATE（綁定牆）-->
+<!-- GATE -->
 <div id="screen-gate" class="screen">
   <div class="gate-icon">✦</div>
   <h2 class="gate-title">結果出來了</h2>
@@ -437,222 +307,139 @@ body { margin: 0; }
 <!-- RESULT -->
 <div id="screen-result" class="screen">
   <div class="result-hero">
-    <div class="result-hero-bg" id="resultBg"></div>
-    <div class="result-hero-overlay"></div>
+    <div class="result-hero-bg" id="resBg"></div>
+    <div class="result-hero-ovl"></div>
     <div class="result-hero-content">
-      <div class="result-color-tag" id="resultColorTag"></div>
-      <div class="result-name" id="resultName"></div>
+      <div class="result-color-tag" id="resTag"></div>
+      <div class="result-name" id="resName"></div>
     </div>
   </div>
   <div class="result-body">
-    <div class="result-quote" id="resultQuote"></div>
-    <div class="result-desc" id="resultDesc"></div>
+    <div class="result-quote" id="resQuote"></div>
+    <div class="result-desc" id="resDesc"></div>
     <div class="result-cta-label">本月專屬體驗</div>
-    <button class="result-cta-btn" id="resultCtaBtn" onclick="goCta()">1 元穿上妳的色　→</button>
+    <button class="result-cta-btn" onclick="goCta()">1 元穿上妳的色　→</button>
     <button class="result-share-btn" onclick="shareResult()">分享給朋友測</button>
   </div>
 </div>
 
 <script>
-// ── QUESTIONS ──
-var QUESTIONS = [
-  {
-    q: '早上起床第一件事？',
-    opts: [
-      { label: 'A', text: '看手機訊息，掌握今天的節奏', score: 'A' },
-      { label: 'B', text: '發呆幾分鐘，讓自己慢慢醒來', score: 'B' },
-      { label: 'C', text: '直接起身，今天的事今天做', score: 'C' }
-    ]
-  },
-  {
-    q: '妳的包包裡一定有？',
-    opts: [
-      { label: 'A', text: '手帳或備忘錄，計畫清楚才安心', score: 'A' },
-      { label: 'B', text: '護手霜或護唇膏，細節決定一切', score: 'B' },
-      { label: 'C', text: '耳機，隨時需要自己的空間', score: 'C' }
-    ]
-  },
-  {
-    q: '妳最常穿的下半身是？',
-    opts: [
-      { label: 'A', text: '直筒褲，俐落不費腦', score: 'A' },
-      { label: 'B', text: '寬褲或裙，輕鬆有餘裕', score: 'B' },
-      { label: 'C', text: '緊身褲，曲線是我的武器', score: 'C' }
-    ]
-  },
-  {
-    q: '朋友找妳吃飯，妳會？',
-    opts: [
-      { label: 'A', text: '馬上答應，社交讓我充電', score: 'A' },
-      { label: 'B', text: '先看行程，不想打亂節奏', score: 'B' },
-      { label: 'C', text: '看心情，今天狀態好才去', score: 'C' }
-    ]
-  },
-  {
-    q: '妳覺得最好的內著條件是？',
-    opts: [
-      { label: 'A', text: '穿起來沒有存在感，忘記它才對', score: 'A' },
-      { label: 'B', text: '觸感要好，每天第一個接觸身體的東西', score: 'B' },
-      { label: 'C', text: '服貼不捲邊不位移，穿整天都安心', score: 'C' }
-    ]
-  }
-];
-
-// ── RESULTS ──
-var RESULTS = {
-  A: {
-    color: '黑 · 基本款',
-    name: '黑色能量型',
-    quote: '妳不需要被看見，但妳知道自己的狀態。',
-    desc: '黑色不只是顏色，是一種態度。服貼、乾爽、沒有存在感——穿上它的人通常不需要別人注意，因為她自己清楚自己在哪裡。萊卡抗菌無縫，一整天的底氣。',
-    bg: '#1C1C1A',
-    ctaUrl: 'https://enamorshop.com/collections/vip-secret'
-  },
-  B: {
-    color: '質感膚 · 裸色系',
-    name: '細節控質感型',
-    quote: '細節控的妳，連內著都不將就。',
-    desc: '妳對觸感有要求，對品質有堅持。質感膚不是普通的膚色，是那種看起來若隱若現、摸起來澀澀的高彈力觸感。細節控最懂這種差別。',
-    bg: '#C4A882',
-    ctaUrl: 'https://enamorshop.com/collections/vip-secret'
-  },
-  C: {
-    color: '灰 · 沉穩色',
-    name: '安靜力量型',
-    quote: '安靜但有力量，從裡到外都是妳的風格。',
-    desc: '灰色是最難駕馭的顏色，也是最有主見的人才會選的顏色。不張揚、不跟風，但穿上去就是一種到位的感覺。服貼包覆，乾爽一整天。',
-    bg: '#888780',
-    ctaUrl: 'https://enamorshop.com/collections/vip-secret'
-  }
-};
-
-// ── STATE ──
-var currentQ = 0;
-var scores = { A: 0, B: 0, C: 0 };
-var resultKey = null;
-var liffInited = false;
-var isLoggedIn = false;
-
-// ── LIFF INIT ──
-var LIFF_ID = '1656208126-fpNe2w28'; // 替換成你的 LIFF ID
+var LIFF_ID = '1656208126-fpNe2w28';
+var CTA_URL = 'https://enamorshop.com/collections/vip-secret';
 var BIND_API = 'https://enamor-member.vercel.app/api/liff-bind';
 
-liff.init({ liffId: LIFF_ID }).then(function() {
-  liffInited = true;
-  isLoggedIn = liff.isLoggedIn();
-}).catch(function(e) {
-  console.warn('LIFF init failed', e);
-});
+var QS = [
+  { q:'早上起床第一件事？', opts:[
+    {l:'A', t:'看手機訊息，掌握今天的節奏', s:'A'},
+    {l:'B', t:'發呆幾分鐘，讓自己慢慢醒來', s:'B'},
+    {l:'C', t:'直接起身，今天的事今天做', s:'C'}
+  ]},
+  { q:'妳的包包裡一定有？', opts:[
+    {l:'A', t:'手帳或備忘錄，計畫清楚才安心', s:'A'},
+    {l:'B', t:'護手霜或護唇膏，細節決定一切', s:'B'},
+    {l:'C', t:'耳機，隨時需要自己的空間', s:'C'}
+  ]},
+  { q:'妳最常穿的下半身是？', opts:[
+    {l:'A', t:'直筒褲，俐落不費腦', s:'A'},
+    {l:'B', t:'寬褲或裙，輕鬆有餘裕', s:'B'},
+    {l:'C', t:'緊身褲，曲線是我的武器', s:'C'}
+  ]},
+  { q:'朋友找妳吃飯，妳會？', opts:[
+    {l:'A', t:'馬上答應，社交讓我充電', s:'A'},
+    {l:'B', t:'先看行程，不想打亂節奏', s:'B'},
+    {l:'C', t:'看心情，今天狀態好才去', s:'C'}
+  ]},
+  { q:'妳覺得最好的內著條件是？', opts:[
+    {l:'A', t:'穿起來沒有存在感，忘記它才對', s:'A'},
+    {l:'B', t:'觸感要好，每天第一個接觸身體的東西', s:'B'},
+    {l:'C', t:'服貼不捲邊不位移，穿整天都安心', s:'C'}
+  ]}
+];
 
-// ── QUIZ LOGIC ──
-function startQuiz() {
-  showScreen('quiz');
-  renderQuestion();
+var RS = {
+  A: { tag:'黑 · 基本款', name:'黑色能量型', quote:'妳不需要被看見，但妳知道自己的狀態。', desc:'黑色不只是顏色，是一種態度。服貼、乾爽、沒有存在感——穿上它的人通常不需要別人注意，因為她自己清楚自己在哪裡。萊卡抗菌無縫，一整天的底氣。', bg:'#1C1C1A' },
+  B: { tag:'質感膚 · 裸色系', name:'細節控質感型', quote:'細節控的妳，連內著都不將就。', desc:'妳對觸感有要求，對品質有堅持。質感膚不是普通的膚色，是那種看起來若隱若現、摸起來澀澀的高彈力觸感。細節控最懂這種差別。', bg:'#C4A882' },
+  C: { tag:'灰 · 沉穩色', name:'安靜力量型', quote:'安靜但有力量，從裡到外都是妳的風格。', desc:'灰色是最難駕馭的顏色，也是最有主見的人才會選的顏色。不張揚、不跟風，但穿上去就是一種到位的感覺。服貼包覆，乾爽一整天。', bg:'#888780' }
+};
+
+var cur = 0, sc = {A:0,B:0,C:0}, rKey = null, liffOk = false, loggedIn = false;
+
+liff.init({liffId: LIFF_ID}).then(function(){
+  liffOk = true;
+  loggedIn = liff.isLoggedIn();
+}).catch(function(e){ console.warn('liff init fail', e); });
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('screen-' + id).classList.add('active');
 }
 
-function renderQuestion() {
-  var q = QUESTIONS[currentQ];
-  document.getElementById('qNum').textContent = 'Q' + (currentQ + 1);
-  document.getElementById('qText').textContent = q.q;
-  document.getElementById('progLabel').textContent = (currentQ + 1) + ' / ' + QUESTIONS.length;
-  document.getElementById('progFill').style.width = ((currentQ / QUESTIONS.length) * 100) + '%';
+function startQuiz() { show('quiz'); renderQ(); }
 
+function renderQ() {
+  var q = QS[cur];
+  document.getElementById('qNum').textContent = 'Q' + (cur+1);
+  document.getElementById('qTxt').textContent = q.q;
+  document.getElementById('progLabel').textContent = (cur+1) + ' / ' + QS.length;
+  document.getElementById('progFill').style.width = (cur / QS.length * 100) + '%';
   var html = '';
-  q.opts.forEach(function(opt) {
-    html += '<button class="quiz-option" onclick="selectOpt(this,\'' + opt.score + '\')">' +
-      '<span class="opt-label">' + opt.label + '</span>' +
-      '<span>' + opt.text + '</span>' +
-      '</button>';
+  q.opts.forEach(function(o){
+    html += '<button class="quiz-opt" onclick="pick(this,\''+o.s+'\')">'
+      + '<span class="opt-lbl">'+o.l+'</span><span>'+o.t+'</span></button>';
   });
-  document.getElementById('qOptions').innerHTML = html;
+  document.getElementById('qOpts').innerHTML = html;
 }
 
-function selectOpt(el, score) {
-  document.querySelectorAll('.quiz-option').forEach(function(b) { b.classList.remove('selected'); });
-  el.classList.add('selected');
-  scores[score]++;
-
-  setTimeout(function() {
-    currentQ++;
-    if (currentQ < QUESTIONS.length) {
-      renderQuestion();
-    } else {
-      finishQuiz();
-    }
-  }, 400);
+function pick(el, s) {
+  document.querySelectorAll('.quiz-opt').forEach(function(b){ b.classList.remove('picked'); });
+  el.classList.add('picked');
+  sc[s]++;
+  setTimeout(function(){
+    cur++;
+    if (cur < QS.length) { renderQ(); }
+    else { finish(); }
+  }, 380);
 }
 
-function finishQuiz() {
-  // 計算結果
-  var max = 0;
-  resultKey = 'A';
-  ['A','B','C'].forEach(function(k) {
-    if (scores[k] > max) { max = scores[k]; resultKey = k; }
-  });
-
-  showScreen('loading');
-  setTimeout(function() {
-    if (isLoggedIn) {
-      showResult();
-    } else {
-      showScreen('gate');
-    }
-  }, 1800);
+function finish() {
+  var max = 0; rKey = 'A';
+  ['A','B','C'].forEach(function(k){ if(sc[k]>max){max=sc[k];rKey=k;} });
+  show('loading');
+  setTimeout(function(){
+    if (loggedIn) { showResult(); } else { show('gate'); }
+  }, 1600);
 }
 
-// ── LOGIN / BIND ──
 function doLogin() {
-  if (!liffInited) { showResult(); return; }
-  if (!liff.isLoggedIn()) {
-    liff.login({ redirectUri: window.location.href });
-    return;
-  }
-  // 已登入，取 token 送綁定
+  if (!liffOk) { showResult(); return; }
+  if (!liff.isLoggedIn()) { liff.login({redirectUri: window.location.href}); return; }
   var token = liff.getAccessToken();
-  fetch(BIND_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accessToken: token, source: 'quiz_fortune' })
-  }).catch(function(e) { console.warn('bind failed', e); });
-  isLoggedIn = true;
+  fetch(BIND_API, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({accessToken:token, source:'quiz_fortune'})}).catch(function(){});
+  loggedIn = true;
   showResult();
 }
 
-// ── RESULT ──
 function showResult() {
-  var r = RESULTS[resultKey];
-  document.getElementById('resultBg').style.background = r.bg;
-  document.getElementById('resultColorTag').textContent = r.color;
-  document.getElementById('resultName').textContent = r.name;
-  document.getElementById('resultQuote').textContent = r.quote;
-  document.getElementById('resultDesc').textContent = r.desc;
-  document.getElementById('resultCtaBtn').textContent = '1 元穿上妳的色　→';
-  showScreen('result');
+  var r = RS[rKey];
+  document.getElementById('resBg').style.background = r.bg;
+  document.getElementById('resTag').textContent = r.tag;
+  document.getElementById('resName').textContent = r.name;
+  document.getElementById('resQuote').textContent = r.quote;
+  document.getElementById('resDesc').textContent = r.desc;
+  show('result');
 }
 
 function goCta() {
-  var r = RESULTS[resultKey];
-  if (liffInited && liff.isInClient()) {
-    liff.openWindow({ url: r.ctaUrl, external: true });
-  } else {
-    window.open(r.ctaUrl, '_blank');
-  }
+  if (liffOk && liff.isInClient()) { liff.openWindow({url:CTA_URL, external:true}); }
+  else { window.open(CTA_URL, '_blank'); }
 }
 
 function shareResult() {
-  var r = RESULTS[resultKey];
-  var msg = '我的內著穿搭運勢是「' + r.name + '」\n' + r.quote + '\n快來測測妳的 → ' + window.location.href;
-  if (liffInited && liff.isInClient()) {
-    liff.shareTargetPicker([{ type: 'text', text: msg }]).catch(function(){});
-  } else {
-    navigator.share ? navigator.share({ text: msg }) : alert('分享連結：' + window.location.href);
-  }
-}
-
-// ── SCREEN ──
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
-  document.getElementById('screen-' + id).classList.add('active');
+  var r = RS[rKey];
+  var msg = '我的內著穿搭運勢是「'+r.name+'」\n'+r.quote+'\n快來測測妳的 → '+window.location.href;
+  if (liffOk && liff.isInClient()) { liff.shareTargetPicker([{type:'text',text:msg}]).catch(function(){}); }
+  else if (navigator.share) { navigator.share({text:msg}); }
+  else { alert('分享連結：'+window.location.href); }
 }
 </script>
 </body>
