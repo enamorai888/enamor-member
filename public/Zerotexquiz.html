@@ -30,12 +30,14 @@ background: var(--paper);
 }
 
 /* ── SCREENS ── */
-.screen { display: none; min-height: 100vh; flex-direction: column; }
-.screen.active { display: flex; }
+.screen { min-height: 100vh; flex-direction: column; }
 
 /* ── INTRO ── */
 #screen-intro {
-  background: var(--ink);
+  background: #F5F0E8;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(28,28,26,0.06) 39px, rgba(28,28,26,0.06) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(28,28,26,0.06) 39px, rgba(28,28,26,0.06) 40px);
   align-items: center;
   justify-content: center;
   padding: 40px 28px;
@@ -52,7 +54,7 @@ background: var(--paper);
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: .25em;
-  color: var(--skin);
+  color: var(--accent);
   text-transform: uppercase;
   margin-bottom: 20px;
 }
@@ -60,7 +62,7 @@ background: var(--paper);
 .intro-title {
   font-size: 26px;
   font-weight: 300;
-  color: #f0ebe3;
+  color: var(--ink);
   line-height: 1.5;
   margin-bottom: 12px;
   letter-spacing: .02em;
@@ -68,8 +70,8 @@ background: var(--paper);
 
 .intro-sub {
   font-size: 13px;
-  color: rgba(240,235,227,.5);
-  margin-bottom: 48px;
+  color: rgba(28,28,26,.5);
+  margin-bottom: 32px;
   line-height: 1.8;
 }
 
@@ -78,8 +80,8 @@ background: var(--paper);
   max-width: 280px;
   padding: 16px;
   background: transparent;
-  border: 1px solid rgba(240,235,227,.3);
-  color: #f0ebe3;
+  border: 1px solid rgba(28,28,26,.25);
+  color: var(--ink);
   font-size: 13px;
   letter-spacing: .1em;
   cursor: pointer;
@@ -87,7 +89,7 @@ background: var(--paper);
   font-family: var(--mono);
   transition: all .2s;
 }
-.intro-btn:hover { background: rgba(240,235,227,.08); }
+.intro-btn:hover { background: rgba(28,28,26,.05); }
 
 /* ── QUIZ ── */
 #screen-quiz { background: var(--paper); padding: 0; }
@@ -385,17 +387,18 @@ background: var(--paper);
 
 /* 桌機置中 */
 body { display: flex; flex-direction: column; align-items: center; }
-.screen { width: 100%; max-width: 480px; }
+.screen { width: 100%; max-width: 480px; display: none; }
+.screen.active { display: flex; }
 </style>
 </head>
 <body>
 
 <!-- INTRO -->
 <div id="screen-intro" class="screen active">
-  <img class="intro-logo" src="https://raw.githubusercontent.com/enamorai888/enamor-line-bot/main/public/EnamoR-logo-PNG-LOGO-W.png" alt="EnamoR" onerror="this.style.display='none'">
+  <img class="intro-logo" src="https://raw.githubusercontent.com/enamorai888/enamor-line-bot/main/public/EnamoR-logo-PNG-LOGO-B.png" alt="EnamoR" onerror="this.style.display='none'">
   <div class="intro-series">ZERO-TEX · 萊卡抗菌系列</div>
   <h1 class="intro-title">妳的內著<br>穿搭運勢</h1>
-  <p class="intro-sub">5 個問題<br>找出最適合妳的那個色</p>
+  <p class="intro-sub">5 個問題，找出最適合妳的那個色</p>
   <button class="intro-btn" onclick="startQuiz()">開始測驗 →</button>
 </div>
 
