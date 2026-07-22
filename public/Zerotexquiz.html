@@ -357,6 +357,13 @@ var cur = 0, sc = {A:0,B:0,C:0}, rKey = null, liffOk = false, loggedIn = false;
 liff.init({liffId: LIFF_ID}).then(function(){
   liffOk = true;
   loggedIn = liff.isLoggedIn();
+  // 頁面重載後，如果有存的結果就直接跳結果
+  var savedKey = sessionStorage.getItem('quiz_result');
+  if (savedKey && loggedIn) {
+    rKey = savedKey;
+    sessionStorage.removeItem('quiz_result');
+    showResult();
+  }
 }).catch(function(e){ console.warn('liff init fail', e); });
 
 function show(id) {
@@ -394,6 +401,7 @@ function pick(el, s) {
 function finish() {
   var max = 0; rKey = 'A';
   ['A','B','C'].forEach(function(k){ if(sc[k]>max){max=sc[k];rKey=k;} });
+  sessionStorage.setItem('quiz_result', rKey);
   show('loading');
   setTimeout(function(){
     if (loggedIn) { showResult(); } else { show('gate'); }
@@ -402,7 +410,11 @@ function finish() {
 
 function doLogin() {
   if (!liffOk) { showResult(); return; }
-  if (!liff.isLoggedIn()) { liff.login({redirectUri: window.location.href}); return; }
+  if (!liff.isLoggedIn()) {
+    sessionStorage.setItem('quiz_result', rKey);
+    liff.login({redirectUri: window.location.href});
+    return;
+  }
   var token = liff.getAccessToken();
   fetch(BIND_API, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({accessToken:token, source:'quiz_fortune'})}).catch(function(){});
   loggedIn = true;
