@@ -40,14 +40,15 @@ background: var(--paper);
     repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(28,28,26,0.06) 39px, rgba(28,28,26,0.06) 40px);
   align-items: center;
   justify-content: center;
-  padding: 40px 28px;
+  padding: 60px 40px;
   text-align: center;
+  flex-direction: column;
 }
 
 .intro-logo {
-  height: 24px;
-  margin-bottom: 40px;
-  opacity: .9;
+  height: 22px;
+  margin-bottom: 48px;
+  opacity: .85;
 }
 
 .intro-series {
@@ -56,40 +57,40 @@ background: var(--paper);
   letter-spacing: .25em;
   color: var(--accent);
   text-transform: uppercase;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .intro-title {
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 300;
   color: var(--ink);
-  line-height: 1.5;
-  margin-bottom: 12px;
+  line-height: 1.4;
+  margin-bottom: 16px;
   letter-spacing: .02em;
 }
 
 .intro-sub {
   font-size: 13px;
-  color: rgba(28,28,26,.5);
-  margin-bottom: 32px;
-  line-height: 1.8;
+  color: rgba(28,28,26,.45);
+  margin-bottom: 40px;
+  line-height: 1.7;
 }
 
 .intro-btn {
   width: 100%;
-  max-width: 280px;
-  padding: 16px;
-  background: transparent;
-  border: 1px solid rgba(28,28,26,.25);
-  color: var(--ink);
+  max-width: 260px;
+  padding: 15px 24px;
+  background: var(--ink);
+  border: none;
+  color: #f5f0e8;
   font-size: 13px;
-  letter-spacing: .1em;
+  letter-spacing: .12em;
   cursor: pointer;
   border-radius: 2px;
   font-family: var(--mono);
   transition: all .2s;
 }
-.intro-btn:hover { background: rgba(28,28,26,.05); }
+.intro-btn:hover { opacity: .85; }
 
 /* ── QUIZ ── */
 #screen-quiz { background: var(--paper); padding: 0; }
@@ -386,8 +387,8 @@ background: var(--paper);
 .hidden { display: none !important; }
 
 /* 桌機置中 */
-body { display: flex; flex-direction: column; align-items: center; }
-.screen { width: 100%; max-width: 480px; display: none; }
+body { margin: 0; }
+.screen { width: 100%; max-width: 480px; margin: 0 auto; display: none; }
 .screen.active { display: flex; }
 </style>
 </head>
@@ -398,7 +399,7 @@ body { display: flex; flex-direction: column; align-items: center; }
   <img class="intro-logo" src="https://raw.githubusercontent.com/enamorai888/enamor-line-bot/main/public/EnamoR-logo-PNG-LOGO-B.png" alt="EnamoR" onerror="this.style.display='none'">
   <div class="intro-series">ZERO-TEX · 萊卡抗菌系列</div>
   <h1 class="intro-title">妳的內著<br>穿搭運勢</h1>
-  <p class="intro-sub">5 個問題，找出最適合妳的那個色</p>
+  <p class="intro-sub">5 個問題<br>找出最適合妳的那個色</p>
   <button class="intro-btn" onclick="startQuiz()">開始測驗 →</button>
 </div>
 
