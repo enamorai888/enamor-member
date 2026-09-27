@@ -41,14 +41,25 @@ const DEDUP_WINDOW_MINUTES = {
 };
 const DEFAULT_DEDUP_MINUTES = 24 * 60;
 
-function extractLineUid(shopifyTags) {
+// 客人身上可能有好幾個 uid_line_（例如 LIFF 的和 AkoHub 舊的），
+// 逐一向 LINE 確認，用第一個「是好友、推得到」的；全部推不到就回傳 null
+async function pickPushableUid(shopifyTags) {
   if (!shopifyTags) return null;
   try {
     const tags = Array.isArray(shopifyTags)
       ? shopifyTags
-      : shopifyTags.split(',').map(t => t.trim());
-    const tag = tags.find(t => t.startsWith('uid_line_'));
-    return tag ? tag.replace('uid_line_', '').trim() : null;
+      : String(shopifyTags).split(',').map(t => t.trim());
+    const uids = tags
+      .filter(t => t.startsWith('uid_line_'))
+      .map(t => t.replace('uid_line_', '').trim())
+      .filter(Boolean);
+    for (const uid of uids) {
+      const r = await fetch('https://api.line.me/v2/bot/profile/' + encodeURIComponent(uid), {
+        headers: { Authorization: 'Bearer ' + LINE_TOKEN },
+      });
+      if (r.ok) return uid;
+    }
+    return null;
   } catch (e) {
     return null;
   }
@@ -160,10 +171,10 @@ export default async function handler(req, res) {
 
   try {
     const tags = shopify_tags || await getCustomerTags(email);
-    const uid = extractLineUid(tags);
+    const uid = await pickPushableUid(tags);
 
     if (!uid) {
-      return res.status(200).json({ skipped: true, reason: 'no_line_uid' });
+      return res.status(200).json({ skipped: true, reason: 'no_pushable_line_uid' });
     }
 
     const isDuplicate = await checkDuplicate(uid, event_type);
