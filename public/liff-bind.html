@@ -444,6 +444,16 @@
       // LIFF 初始化後，專屬連結的參數才會回到網址上
       params = new URLSearchParams(window.location.search);
       UTM_SOURCE = params.get('utm_source') || UTM_SOURCE;
+      // 身分證明過期（常見於電腦瀏覽器裡留著舊的登入）：先登出再重新登入，拿新的
+      const dec = liff.getDecodedIDToken();
+      if (!dec || !dec.exp || dec.exp * 1000 < Date.now() + 60000) {
+        if (!sessionStorage.getItem('enamor_relogin')) {
+          sessionStorage.setItem('enamor_relogin', '1');
+          liff.logout();
+          liff.login({ redirectUri: window.location.href });
+          return;
+        }
+      }
       idToken = liff.getIDToken();
       const profile = await liff.getProfile();
       lineUID = profile.userId;
@@ -452,6 +462,13 @@
       bindForm.style.display = 'none';
       const sig = params.get('s');
       const data = await bind(sig ? { c: params.get('c') || '', e: params.get('e') || '', s: sig } : {});
+      if (!data.success && data.message && data.message.indexOf('驗證失敗') > -1 && !sessionStorage.getItem('enamor_relogin')) {
+        sessionStorage.setItem('enamor_relogin', '1');
+        liff.logout();
+        liff.login({ redirectUri: window.location.href });
+        return;
+      }
+      sessionStorage.removeItem('enamor_relogin');
       if (data.success) { overlay.classList.add('hide'); showSuccess(data); return; }
       bindForm.style.display = '';
       if (!data.needEmail) showError(data.message || '連結已失效，請輸入 email 綁定');
