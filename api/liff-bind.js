@@ -8,7 +8,7 @@ import crypto from 'crypto';
  *   c + s    專屬連結：顧客編號＋簽名（客人不用輸入 email）
  *   e + s    專屬連結：email（編碼）＋簽名（舊官網會員，不在 Shopify）
  *   email    一般綁定：客人自己輸入
- *   lineUID  舊版頁面（例如測驗頁）仍可用，但不發見面禮
+ *   （一律向 LINE 驗證身分；不再接受網頁直接傳來的 LINE ID）
  *
  * 環境變數：
  *   BIND_SECRET            專屬連結的簽名密鑰（跟 Apps Script 的 BIND_SECRET 一樣）
@@ -28,6 +28,12 @@ import crypto from 'crypto';
  *   MONTHLY_AMOUNT         會員券金額，預設 100
  *   MONTHLY_MIN_SUBTOTAL   會員券最低消費，預設 799
  *   MONTHLY_LABEL          會員券名稱，預設「本月會員券」
+ *
+ * 領取紀錄不用標籤，記在顧客的「中繼欄位」（namespace: enamor），每個欄位只存一個值：
+ *   enamor.welcome_gift   領見面禮的日期
+ *   enamor.thanks_gift    領第一波感謝禮的日期
+ *   enamor.coupon_wave    最近領過的會員券波次（例如 2612），下個月領會覆蓋成 2701
+ * 顧客身上的標籤只留 uid_line_（飛輪推播用）。舊的 bind_gift／first_wave_gift 標籤仍會被認得，不會重複發。
  *
  * 規則：
  *   ・第一次綁定：見面禮（預設 200 元、滿 499、30 天）。綁定的那一波不再另外領會員券
@@ -77,18 +83,12 @@ export default async function handler(req, res) {
   const stage = body.stage || 'join';
   let email   = body.email ? String(body.email).trim().toLowerCase() : '';
 
-  // 1. 確認 LINE 身分：有 idToken 就向 LINE 驗證；舊版頁面才退回用前端送來的 lineUID
-  let lineUID = '';
-  let verified = false;
-  if (body.idToken) {
-    const v = await verifyIdToken(body.idToken).catch(() => null);
-    if (!v) return res.status(401).json({ success: false, message: 'LINE 身分驗證失敗，請關閉後重新開啟' });
-    lineUID = v.sub;
-    verified = true;
-  } else if (body.lineUID) {
-    lineUID = String(body.lineUID).trim();
-  }
-  if (!lineUID) return res.status(400).json({ success: false, message: '缺少 LINE 身分' });
+  // 1. 確認 LINE 身分：一律向 LINE 驗證，沒有驗證就不綁定（不再相信網頁直接傳來的 LINE ID）
+  if (!body.idToken) return res.status(401).json({ success: false, message: '請在 LINE 裡打開綁定連結' });
+  const v = await verifyIdToken(body.idToken).catch(() => null);
+  if (!v) return res.status(401).json({ success: false, message: 'LINE 身分驗證失敗，請關閉後重新開啟' });
+  const lineUID = v.sub;
+  const verified = true;
 
   // 2. 專屬連結：驗證簽名，決定要綁到哪一位顧客
   let signedCustomerId = '';
@@ -219,6 +219,30 @@ export default async function handler(req, res) {
     }
   }
 
+  // 中繼欄位：讀取與寫入領取紀錄
+  async function getGiftMeta(customerId) {
+    try {
+      const d = await gql(
+        'query($id: ID!) { customer(id: $id) { w: metafield(namespace: "enamor", key: "welcome_gift") { value } t: metafield(namespace: "enamor", key: "thanks_gift") { value } c: metafield(namespace: "enamor", key: "coupon_wave") { value } } }',
+        { id: 'gid://shopify/Customer/' + customerId }
+      );
+      const c = (d.data || {}).customer || {};
+      return { welcome: (c.w || {}).value || '', thanks: (c.t || {}).value || '', wave: (c.c || {}).value || '' };
+    } catch (e) { console.error('讀取中繼欄位錯誤:', e.message); return { welcome: '', thanks: '', wave: '' }; }
+  }
+  async function setGiftMeta(customerId, fields) {
+    const metafields = Object.keys(fields).map(k => ({
+      ownerId: 'gid://shopify/Customer/' + customerId, namespace: 'enamor', key: k,
+      type: 'single_line_text_field', value: String(fields[k]),
+    }));
+    try {
+      const d = await gql('mutation($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { userErrors { field message } } }', { m: metafields });
+      const errs = (d.errors || []).concat(((d.data || {}).metafieldsSet || {}).userErrors || []);
+      if (errs.length) console.error('寫入中繼欄位失敗:', JSON.stringify(errs));
+    } catch (e) { console.error('寫入中繼欄位錯誤:', e.message); }
+  }
+  const todayTW = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+
   async function subscribeEmail(customerId) {
     try {
       const data = await gql(
@@ -345,24 +369,22 @@ export default async function handler(req, res) {
     //   本月有會員券 → 領本月會員券（每一波一次）
     //   本月沒有（囤貨季或第一波之前）→ 10/31 前可領第一波感謝禮（一輩子一次）
     const WAVE = currentWave(new Date());
-    const waveTag = WAVE ? 'wave_' + WAVE : '';
     if (lineAlreadyBound && verified && stage === 'join') {
       const c0 = taggedCustomers[0];
       const tags0 = (c0.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+      const meta0 = await getGiftMeta(c0.id);
       let gift0 = null, note = 'already_bound', claimed = false;
       if (WAVE) {
-        if (!tags0.includes(waveTag)) {
+        if (meta0.wave !== WAVE) {
           gift0 = await createGiftCode(c0.email, 'monthly');
-          if (gift0) { tags0.push(waveTag); note = 'monthly:' + gift0.code; }
+          if (gift0) { await setGiftMeta(c0.id, { coupon_wave: WAVE }); note = 'monthly:' + gift0.code; }
         } else { claimed = true; note = 'monthly_claimed'; }
-      } else if (beforeDate('THANKS_UNTIL', '2026-10-31') && !tags0.includes('first_wave_gift') && !tags0.includes(GIFT_TAG)) {
+      } else if (beforeDate('THANKS_UNTIL', '2026-10-31') && !meta0.thanks && !meta0.welcome
+                 && !tags0.includes('first_wave_gift') && !tags0.includes(GIFT_TAG)) {
         gift0 = await createGiftCode(c0.email, 'thanks');
-        if (gift0) { tags0.push('first_wave_gift'); note = 'thanks:' + gift0.code; }
+        if (gift0) { await setGiftMeta(c0.id, { thanks_gift: todayTW() }); note = 'thanks:' + gift0.code; }
       }
-      if (gift0) {
-        await updateCustomer(c0.id, { id: c0.id, tags: tags0.join(',') });
-        await pushLine(lineUID, [giftMessage(gift0)]);
-      }
+      if (gift0) await pushLine(lineUID, [giftMessage(gift0)]);
       await writeSheet('success', note);
       return res.status(200).json({ success: true, alreadyBound: true, gift: gift0, claimed });
     }
@@ -384,6 +406,7 @@ export default async function handler(req, res) {
     }
 
     let isFirstBindOnThisTrack = true;
+    let bindCustomerId = null;
     let giftEligible = false;
     let customerEmail = email;
 
@@ -393,7 +416,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, note: 'duplicate_skipped' });
       }
       giftEligible = verified && !lineAlreadyBound;
-      const tags = [uidTag, flywheelTag].concat(giftEligible ? [GIFT_TAG] : []).concat(waveTag ? [waveTag] : []);
+      const tags = [uidTag, flywheelTag];
       const createRes = await rest('customers.json', {
         method: 'POST',
         body: JSON.stringify({ customer: {
@@ -404,17 +427,20 @@ export default async function handler(req, res) {
       });
       const createData = await createRes.json();
       if (!createRes.ok || !createData.customer) throw new Error('建立顧客失敗: ' + JSON.stringify(createData));
+      bindCustomerId = createData.customer.id;
     } else {
       const customer = customers[0];
       customerEmail = customer.email || email;
       const tags = (customer.tags || '').split(',').map(t => t.trim()).filter(Boolean);
       isFirstBindOnThisTrack = boundTag ? !tags.includes(boundTag) : !tags.some(t => t.startsWith('uid_line_'));
 
-      // 見面禮：LINE 身分已驗證、這個 LINE ID 第一次綁到這位顧客、這位顧客沒領過
-      giftEligible = verified && !lineAlreadyBound && !tags.includes(GIFT_TAG);
+      // 見面禮：LINE 身分已驗證、這個 LINE ID 第一次綁定、這位顧客沒領過
+      bindCustomerId = customer.id;
+      const meta = await getGiftMeta(customer.id);
+      giftEligible = verified && !lineAlreadyBound && !meta.welcome && !tags.includes(GIFT_TAG);
 
       let changed = false;
-      [uidTag, flywheelTag].concat(giftEligible ? [GIFT_TAG] : []).concat(waveTag ? [waveTag] : []).forEach(t => {
+      [uidTag, flywheelTag].forEach(t => {
         if (!tags.includes(t)) { tags.push(t); changed = true; }
       });
       const populateEmail = email && !customer.email;
@@ -430,6 +456,11 @@ export default async function handler(req, res) {
     // 5. 見面禮或歡迎訊息
     let gift = null;
     if (giftEligible) gift = await createGiftCode(customerEmail, 'welcome');
+    if (gift && bindCustomerId) {
+      const f = { welcome_gift: todayTW() };
+      if (WAVE) f.coupon_wave = WAVE;
+      await setGiftMeta(bindCustomerId, f);
+    }
     if (gift) {
       await pushLine(lineUID, [giftMessage(gift)]);
     } else if (isFirstBindOnThisTrack) {
