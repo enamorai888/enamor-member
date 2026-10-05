@@ -294,7 +294,10 @@
 <body>
 
 <div id="loading-overlay">
-  <div class="spinner"></div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:0 32px;text-align:center;">
+    <div class="spinner"></div>
+    <div style="font-size:14px;color:#6B6760;line-height:1.7;">秘書正在為您確認會員資料<br>並準備專屬禮物，請稍候幾秒</div>
+  </div>
 </div>
 
 <div class="page">
@@ -396,14 +399,17 @@
     successBlock.classList.add('visible');
     const sub = document.getElementById('success-sub');
     const title = document.querySelector('.success-title');
-    if (data.alreadyBound && data.gift && data.gift.kind === 'monthly') {
+    if (data.alreadyBound && data.reshown) {
+      title.textContent = '您之前已經綁定了';
+      sub.innerHTML = '您的禮物還沒使用，<br>點下方按鈕就會自動套用。';
+    } else if (data.alreadyBound && data.gift && data.gift.kind === 'monthly') {
       title.textContent = data.gift.label + '準備好了';
       sub.innerHTML = '這個月的月禮也上架了，可以一起看看。';
     } else if (data.alreadyBound && data.claimed) {
       title.textContent = '本月會員券已經領過了';
       sub.innerHTML = '請到 LINE 裡秘書傳給您的那則訊息，<br>點「直接套用，去逛逛」就能使用。';
     } else if (data.alreadyBound) {
-      title.textContent = '您早就在了';
+      title.textContent = '您之前已經綁定了';
       sub.innerHTML = '謝謝您是把 LINE 交給秘書的朋友。<br>每個月的月禮、快用完、該換一輪的時候，秘書都會提醒您。';
     } else {
       sub.innerHTML = '每個月的月禮、會員券，快用完、該換一輪的時候，<br>秘書都會直接在 LINE 告訴您。';
