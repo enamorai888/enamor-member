@@ -15,7 +15,8 @@ import crypto from 'crypto';
  *   LINE_LOGIN_CHANNEL_ID  1656208126（驗證 LINE 身分用，沒設就用預設值）
  *   GIFT_AMOUNT            見面禮金額，預設 200；設 0 就不發
  *   GIFT_MIN_SUBTOTAL      最低消費，預設 499
- *   GIFT_END               見面禮統一到期日（例如 2026-10-31T23:59:59+08:00）；沒設或已過期就用 30 天
+ *   GIFT_DAYS              見面禮、感謝禮的有效天數，預設 14 天（到期前 3 天由飛輪提醒）
+ *   GIFT_END               見面禮統一到期日（例如 2026-10-31T23:59:59+08:00）；沒設或已過期就用 GIFT_DAYS
  *   THANKS_AMOUNT          已綁定老朋友的感謝禮金額，預設跟 GIFT_AMOUNT 一樣；設 0 就不發
  *   GIFT_LABEL             10/31 前的見面禮名稱，預設「10.10 會員禮」；之後自動叫「見面禮」（不用設定）
  *
@@ -33,10 +34,11 @@ import crypto from 'crypto';
  *   enamor.welcome_gift   領見面禮的日期
  *   enamor.thanks_gift    領第一波感謝禮的日期
  *   enamor.coupon_wave    最近領過的會員券波次（例如 2612），下個月領會覆蓋成 2701
+ *   enamor.last_gift      最近一張券（碼、金額、期限）；客人再打開綁定頁時，還沒用就再顯示一次
  * 顧客身上的標籤只留 uid_line_（飛輪推播用）。舊的 bind_gift／first_wave_gift 標籤仍會被認得，不會重複發。
  *
  * 規則：
- *   ・第一次綁定：見面禮（預設 200 元、滿 499、30 天）。綁定的那一波不再另外領會員券
+ *   ・第一次綁定：見面禮（預設 200 元、滿 499、14 天）。綁定的那一波不再另外領會員券
  *   ・已綁定的人：本月有會員券時，每一波可領一張；期限＝領券後 30 天或下一個 14 號，取先到的
  *   ・已綁定的人、10/31 前：可領一次「第一波感謝禮」
  *   ・所有券都由程式產生、只能用一次、不跟其他折扣疊加；客人點按鈕即自動套用
@@ -46,6 +48,7 @@ import crypto from 'crypto';
  */
 
 const LIFF_CHANNEL_ID = process.env.LINE_LOGIN_CHANNEL_ID || '1656208126';
+let TOKEN_CACHE = { token: '', exp: 0 };   // Shopify token 快取，減少每次綁定的等待時間
 
 function sign(value) {
   return crypto.createHmac('sha256', process.env.BIND_SECRET || '').update(value).digest('hex').slice(0, 32);
@@ -127,6 +130,7 @@ export default async function handler(req, res) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ timestamp, email, lineUID, track, stage, status, errorMsg: errorMsg || '', upsert: true }),
+        signal: AbortSignal.timeout(4000),   // 試算表紀錄最多等 4 秒，不讓客人久等
       });
     } catch (e) { console.error('Sheet error:', e.message); }
   }
@@ -136,20 +140,23 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true });
   }
 
-  // 3. Shopify token
-  let accessToken;
-  try {
-    const tokenRes = await fetch('https://' + domain + '/admin/oauth/access_token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, grant_type: 'client_credentials' }),
-    });
-    const tokenData = await tokenRes.json();
-    accessToken = tokenData.access_token;
-    if (!accessToken) throw new Error(JSON.stringify(tokenData));
-  } catch (e) {
-    await writeSheet('failed', 'Token 換取失敗: ' + e.message);
-    return res.status(500).json({ success: false, message: '無法取得 Shopify token' });
+  // 3. Shopify token（有快取就直接用）
+  let accessToken = TOKEN_CACHE.exp > Date.now() ? TOKEN_CACHE.token : '';
+  if (!accessToken) {
+    try {
+      const tokenRes = await fetch('https://' + domain + '/admin/oauth/access_token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, grant_type: 'client_credentials' }),
+      });
+      const tokenData = await tokenRes.json();
+      accessToken = tokenData.access_token;
+      if (!accessToken) throw new Error(JSON.stringify(tokenData));
+      TOKEN_CACHE = { token: accessToken, exp: Date.now() + 50 * 60000 };
+    } catch (e) {
+      await writeSheet('failed', 'Token 換取失敗: ' + e.message);
+      return res.status(500).json({ success: false, message: '無法取得 Shopify token' });
+    }
   }
 
   const rest = (path, opt = {}) => fetch('https://' + domain + '/admin/api/2026-01/' + path, {
@@ -223,12 +230,14 @@ export default async function handler(req, res) {
   async function getGiftMeta(customerId) {
     try {
       const d = await gql(
-        'query($id: ID!) { customer(id: $id) { w: metafield(namespace: "enamor", key: "welcome_gift") { value } t: metafield(namespace: "enamor", key: "thanks_gift") { value } c: metafield(namespace: "enamor", key: "coupon_wave") { value } } }',
+        'query($id: ID!) { customer(id: $id) { w: metafield(namespace: "enamor", key: "welcome_gift") { value } t: metafield(namespace: "enamor", key: "thanks_gift") { value } c: metafield(namespace: "enamor", key: "coupon_wave") { value } g: metafield(namespace: "enamor", key: "last_gift") { value } } }',
         { id: 'gid://shopify/Customer/' + customerId }
       );
       const c = (d.data || {}).customer || {};
-      return { welcome: (c.w || {}).value || '', thanks: (c.t || {}).value || '', wave: (c.c || {}).value || '' };
-    } catch (e) { console.error('讀取中繼欄位錯誤:', e.message); return { welcome: '', thanks: '', wave: '' }; }
+      let last = null;
+      try { last = (c.g || {}).value ? JSON.parse(c.g.value) : null; } catch (e) { last = null; }
+      return { welcome: (c.w || {}).value || '', thanks: (c.t || {}).value || '', wave: (c.c || {}).value || '', last };
+    } catch (e) { console.error('讀取中繼欄位錯誤:', e.message); return { welcome: '', thanks: '', wave: '', last: null }; }
   }
   async function setGiftMeta(customerId, fields) {
     const metafields = Object.keys(fields).map(k => ({
@@ -241,6 +250,15 @@ export default async function handler(req, res) {
       if (errs.length) console.error('寫入中繼欄位失敗:', JSON.stringify(errs));
     } catch (e) { console.error('寫入中繼欄位錯誤:', e.message); }
   }
+  async function codeStillUsable(code) {
+    try {
+      const d = await gql('query($c: String!) { codeDiscountNodeByCode(code: $c) { codeDiscount { ... on DiscountCodeBasic { status asyncUsageCount } } } }', { c: code });
+      const cd = ((d.data || {}).codeDiscountNodeByCode || {}).codeDiscount;
+      if (!cd) return false;
+      return cd.status === 'ACTIVE' && Number(cd.asyncUsageCount || 0) === 0;
+    } catch (e) { return false; }
+  }
+  const lastGiftValue = (g) => JSON.stringify({ kind: g.kind, label: g.label, code: g.code, amount: g.amount, min: g.min, endText: g.endText });
   const todayTW = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
 
   async function subscribeEmail(customerId) {
@@ -300,7 +318,8 @@ export default async function handler(req, res) {
       prefix = isThanks ? 'THANK-' : 'BIND-';
       label = isThanks ? '第一波感謝禮' : (beforeDate('GIFT_LABEL_UNTIL', '2026-10-31') ? (process.env.GIFT_LABEL || '10.10 會員禮') : '見面禮');
       const fixedEnd = process.env.GIFT_END ? new Date(process.env.GIFT_END) : null;
-      end = fixedEnd && fixedEnd.getTime() > now.getTime() + 86400000 ? fixedEnd : new Date(now.getTime() + 30 * 86400000);
+      const days = Number(process.env.GIFT_DAYS || 14);
+      end = fixedEnd && fixedEnd.getTime() > now.getTime() + 86400000 ? fixedEnd : new Date(now.getTime() + days * 86400000);
     }
     if (!amount) return null;
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -373,20 +392,28 @@ export default async function handler(req, res) {
       const c0 = taggedCustomers[0];
       const tags0 = (c0.tags || '').split(',').map(t => t.trim()).filter(Boolean);
       const meta0 = await getGiftMeta(c0.id);
-      let gift0 = null, note = 'already_bound', claimed = false;
+      let gift0 = null, note = 'already_bound', claimed = false, metaJob = null;
       if (WAVE) {
         if (meta0.wave !== WAVE) {
           gift0 = await createGiftCode(c0.email, 'monthly');
-          if (gift0) { await setGiftMeta(c0.id, { coupon_wave: WAVE }); note = 'monthly:' + gift0.code; }
+          if (gift0) { metaJob = setGiftMeta(c0.id, { coupon_wave: WAVE, last_gift: lastGiftValue(gift0) }); note = 'monthly:' + gift0.code; }
         } else { claimed = true; note = 'monthly_claimed'; }
       } else if (beforeDate('THANKS_UNTIL', '2026-10-31') && !meta0.thanks && !meta0.welcome
                  && !tags0.includes('first_wave_gift') && !tags0.includes(GIFT_TAG)) {
         gift0 = await createGiftCode(c0.email, 'thanks');
-        if (gift0) { await setGiftMeta(c0.id, { thanks_gift: todayTW() }); note = 'thanks:' + gift0.code; }
+        if (gift0) { metaJob = setGiftMeta(c0.id, { thanks_gift: todayTW(), last_gift: lastGiftValue(gift0) }); note = 'thanks:' + gift0.code; }
       }
-      if (gift0) await pushLine(lineUID, [giftMessage(gift0)]);
-      await writeSheet('success', note);
-      return res.status(200).json({ success: true, alreadyBound: true, gift: gift0, claimed });
+      // 沒有新的券：上一張還沒用、也還沒過期，就再顯示一次，客人不用去翻 LINE
+      let reshown = false;
+      if (!gift0 && meta0.last && meta0.last.code && await codeStillUsable(meta0.last.code)) {
+        gift0 = meta0.last; reshown = true; claimed = false; note = 'reshown:' + gift0.code;
+      }
+      await Promise.all([
+        (gift0 && !reshown) ? pushLine(lineUID, [giftMessage(gift0)]) : null,
+        metaJob,
+        writeSheet('success', note),
+      ]);
+      return res.status(200).json({ success: true, alreadyBound: true, gift: gift0, claimed, reshown });
     }
 
     // 還沒綁定、也沒有專屬連結：需要客人輸入 email
@@ -456,20 +483,21 @@ export default async function handler(req, res) {
     // 5. 見面禮或歡迎訊息
     let gift = null;
     if (giftEligible) gift = await createGiftCode(customerEmail, 'welcome');
+    const jobs = [];
     if (gift && bindCustomerId) {
-      const f = { welcome_gift: todayTW() };
+      const f = { welcome_gift: todayTW(), last_gift: lastGiftValue(gift) };
       if (WAVE) f.coupon_wave = WAVE;
-      await setGiftMeta(bindCustomerId, f);
+      jobs.push(setGiftMeta(bindCustomerId, f));
     }
     if (gift) {
-      await pushLine(lineUID, [giftMessage(gift)]);
+      jobs.push(pushLine(lineUID, [giftMessage(gift)]));
     } else if (isFirstBindOnThisTrack) {
-      const welcome = await getSheetMessage(track === 'fortune' ? 'welcome_fortune' : 'welcome_Gift');
-      if (welcome) await pushLine(lineUID, [{ type: 'text', text: welcome }]);
+      jobs.push(getSheetMessage(track === 'fortune' ? 'welcome_fortune' : 'welcome_Gift')
+        .then(welcome => welcome ? pushLine(lineUID, [{ type: 'text', text: welcome }]) : null));
     }
-
-    await syncKlaviyoLineUid(customerEmail, lineUID);
-    await writeSheet('success', gift ? 'gift:' + gift.code : '');
+    jobs.push(syncKlaviyoLineUid(customerEmail, lineUID));
+    jobs.push(writeSheet('success', gift ? 'gift:' + gift.code : ''));
+    await Promise.all(jobs);
     return res.status(200).json({ success: true, gift });
   } catch (err) {
     console.error('liff-bind error:', err.message);
