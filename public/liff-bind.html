@@ -263,7 +263,15 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
-  </style>
+  
+  /* 綁定見面禮 */
+  .gift-block { display:none; margin-top:20px; padding:18px; border:1px solid #8B6F47; text-align:center; }
+  .gift-block.visible { display:block; }
+  .gift-label { font-size:13px; color:#8B6F47; letter-spacing:.05em; }
+  .gift-code { font-size:26px; font-weight:600; letter-spacing:.12em; color:#1F1F1F; margin:8px 0; user-select:all; }
+  .gift-note { font-size:12px; color:#8B6F47; line-height:1.6; }
+  .btn-gift { display:inline-block; margin-top:14px; padding:12px 28px; background:#8B6F47; color:#fff; text-decoration:none; font-size:15px; }
+</style>
 
   <!-- Meta Pixel -->
   <script>
@@ -296,29 +304,29 @@
       <div class="wordmark-en">EnamoR Official</div>
     </div>
 
-    <div class="hero-photo">
-      <img src="https://cdn.shopify.com/s/files/1/0673/5436/1904/files/a7ca85f1-fe49-4fdb-ad76-7cca0b376c03.jpg?v=1782875579" alt="EnamoR 貓咪執行長">
-      <div class="footer-note">★ 成功綁定不定期抽貓咪執行長親筆簽名照（電子檔）！</div>
-    </div>
-
     <div class="title-block">
       <div class="title-main">會員綁定</div>
-      <div class="title-sub">輸入 Email，將 LINE 與會員資料綁定</div>
+      <div class="title-sub">綁定之後，舒適秘書會在您需要的時候，直接在 LINE 提醒您</div>
     </div>
 
     <div class="benefits">
       <div class="benefit-item">
         <span class="benefit-num">1.</span>
-        <span>每月發送會員限定免費小褲好禮</span>
+        <span>每個月的會員月禮與會員券，秘書幫您準備好</span>
       </div>
       <div class="benefit-item">
         <span class="benefit-num">2.</span>
-        <span>不定期 LINE 專屬神秘優惠</span>
+        <span>洗沐快用完之前，秘書先提醒您補</span>
       </div>
       <div class="benefit-item">
         <span class="benefit-num">3.</span>
-        <span>活動通知近況不漏接</span>
+        <span>貼身衣物該換一輪時，秘書告訴您</span>
       </div>
+      <div class="benefit-item">
+        <span class="benefit-num">4.</span>
+        <span>真正重要的大活動，第一時間通知您</span>
+      </div>
+      <p class="consent-note" style="margin-top:12px;">秘書只在需要的時候出現。平常的新品、故事和小活動，會寄到您的信箱。<br>綁定完成，秘書另外為您準備了一份會員禮。</p>
     </div>
 
     <div id="bind-form">
@@ -340,8 +348,14 @@
     <div class="success-block" id="success-block">
       <div class="success-icon">✓</div>
       <div class="success-title">綁定完成</div>
-      <div class="success-sub">月禮連結已發送到您的 LINE<br>請保持好友狀態以繼續收到禮遇</div>
-      <a href="https://enamorshop.com/collections/vip-secret" class="btn-vip">前往會員獨享專區</a>
+      <div class="success-sub" id="success-sub">月禮連結已發送到您的 LINE<br>請保持好友狀態以繼續收到禮遇</div>
+      <div class="gift-block" id="gift-block">
+        <div class="gift-label" id="gift-label">秘書為您準備的見面禮</div>
+        <div class="gift-code" id="gift-code"></div>
+        <div class="gift-note" id="gift-note"></div>
+        <a href="#" class="btn-gift" id="gift-btn">直接套用，去逛逛</a>
+      </div>
+      <a href="https://enamorshop.com/collections/vip-secret" class="btn-vip" id="btn-vip">前往會員獨享專區</a>
     </div>
 
   </div>
@@ -353,10 +367,6 @@
   const VIP_URL  = 'https://enamorshop.com/collections/vip-secret';
   const TRACK    = 'gift';
 
-  // 讀取 UTM source
-  const urlParams  = new URLSearchParams(window.location.search);
-  const UTM_SOURCE = urlParams.get('utm_source') || 'organic';
-
   const overlay      = document.getElementById('loading-overlay');
   const emailInput   = document.getElementById('email-input');
   const btnSubmit    = document.getElementById('btn-submit');
@@ -366,44 +376,13 @@
   const msgInfo      = document.getElementById('msg-info');
 
   let lineUID = null;
+  let idToken = null;
+  let params  = new URLSearchParams(window.location.search);
+  let UTM_SOURCE = params.get('utm_source') || 'organic';
 
-  function showError(text) {
-    msgError.textContent = text;
-    msgError.classList.add('visible');
-    msgInfo.classList.remove('visible');
-  }
-  function showInfo(text) {
-    msgInfo.textContent = text;
-    msgInfo.classList.add('visible');
-    msgError.classList.remove('visible');
-  }
-  function clearMsg() {
-    msgError.classList.remove('visible');
-    msgInfo.classList.remove('visible');
-  }
-
-  async function initLiff() {
-    try {
-      await liff.init({ liffId: LIFF_ID });
-
-      if (!liff.isLoggedIn()) {
-        liff.login();
-        return;
-      }
-
-      const profile = await liff.getProfile();
-      lineUID = profile.userId;
-
-      overlay.classList.add('hide');
-      emailInput.disabled = false;
-      validateEmail();
-
-    } catch (err) {
-      console.error('LIFF init error:', err);
-      overlay.classList.add('hide');
-      showError('LINE 授權失敗，請關閉後重新開啟連結');
-    }
-  }
+  function showError(text) { msgError.textContent = text; msgError.classList.add('visible'); msgInfo.classList.remove('visible'); }
+  function showInfo(text)  { msgInfo.textContent = text; msgInfo.classList.add('visible'); msgError.classList.remove('visible'); }
+  function clearMsg()      { msgError.classList.remove('visible'); msgInfo.classList.remove('visible'); }
 
   function validateEmail() {
     const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.value.trim());
@@ -411,41 +390,87 @@
     return ok;
   }
 
-  emailInput.addEventListener('input', () => {
-    clearMsg();
-    validateEmail();
-  });
+  function showSuccess(data) {
+    if (typeof fbq !== 'undefined') fbq('trackCustom', 'LineBinding', { source: UTM_SOURCE, already: !!data.alreadyBound });
+    bindForm.style.display = 'none';
+    successBlock.classList.add('visible');
+    const sub = document.getElementById('success-sub');
+    const title = document.querySelector('.success-title');
+    if (data.alreadyBound && data.gift && data.gift.kind === 'monthly') {
+      title.textContent = data.gift.label + '準備好了';
+      sub.innerHTML = '這個月的月禮也上架了，可以一起看看。';
+    } else if (data.alreadyBound && data.claimed) {
+      title.textContent = '本月會員券已經領過了';
+      sub.innerHTML = '請到 LINE 裡秘書傳給您的那則訊息，<br>點「直接套用，去逛逛」就能使用。';
+    } else if (data.alreadyBound) {
+      title.textContent = '您早就在了';
+      sub.innerHTML = '謝謝您是把 LINE 交給秘書的朋友。<br>每個月的月禮、快用完、該換一輪的時候，秘書都會提醒您。';
+    } else {
+      sub.innerHTML = '每個月的月禮、會員券，快用完、該換一輪的時候，<br>秘書都會直接在 LINE 告訴您。';
+    }
+    if (data.gift) {
+      const g = data.gift;
+      document.getElementById('gift-label').textContent = g.kind === 'thanks' ? '第一波感謝禮' : (g.kind === 'monthly' ? g.label : ('秘書為您準備的' + (g.label || '見面禮')));
+      document.getElementById('gift-code').textContent = g.code;
+      document.getElementById('gift-note').textContent = g.amount + ' 元，滿 ' + g.min + ' 元可用，' + g.endText + ' 前有效，限用一次。不用輸入，點下方按鈕就會自動套用；之後也可以從 LINE 訊息裡的按鈕使用。';
+      document.getElementById('gift-btn').href = 'https://enamorshop.com/discount/' + encodeURIComponent(g.code) + '?redirect=/pages/zero-tex-landing';
+      document.getElementById('gift-block').classList.add('visible');
+      document.getElementById('btn-vip').style.display = 'none';
+    } else if (!data.alreadyBound) {
+      setTimeout(() => { window.location.href = VIP_URL; }, 2500);
+    }
+  }
+
+  async function bind(extra) {
+    const res = await fetch(BIND_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ idToken, lineUID, track: TRACK, stage: 'join', utm_source: UTM_SOURCE }, extra)),
+    });
+    return res.json();
+  }
+
+  async function initLiff() {
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
+
+      // LIFF 初始化後，專屬連結的參數才會回到網址上
+      params = new URLSearchParams(window.location.search);
+      UTM_SOURCE = params.get('utm_source') || UTM_SOURCE;
+      idToken = liff.getIDToken();
+      const profile = await liff.getProfile();
+      lineUID = profile.userId;
+
+      // 先直接試一次：專屬連結會自動綁定；已經綁定過的人直接領感謝禮；其他人才需要輸入 email
+      bindForm.style.display = 'none';
+      const sig = params.get('s');
+      const data = await bind(sig ? { c: params.get('c') || '', e: params.get('e') || '', s: sig } : {});
+      if (data.success) { overlay.classList.add('hide'); showSuccess(data); return; }
+      bindForm.style.display = '';
+      if (!data.needEmail) showError(data.message || '連結已失效，請輸入 email 綁定');
+
+      overlay.classList.add('hide');
+      emailInput.disabled = false;
+      validateEmail();
+    } catch (err) {
+      console.error('LIFF init error:', err);
+      overlay.classList.add('hide');
+      showError('LINE 授權失敗，請關閉後重新開啟連結');
+    }
+  }
+
+  emailInput.addEventListener('input', () => { clearMsg(); validateEmail(); });
 
   btnSubmit.addEventListener('click', async () => {
     if (!validateEmail()) return;
-    const email = emailInput.value.trim();
-
     btnSubmit.disabled = true;
     btnSubmit.textContent = '處理中';
     showInfo('綁定中，請稍候...');
-
     try {
-      const res = await fetch(BIND_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          lineUID,
-          track: TRACK,
-          stage: 'join'
-        })
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        // 觸發 Pixel 綁定事件，帶入來源渠道
-        if (typeof fbq !== 'undefined') {
-          fbq('trackCustom', 'LineBinding', { source: UTM_SOURCE });
-        }
-        bindForm.style.display = 'none';
-        successBlock.classList.add('visible');
-        setTimeout(() => { window.location.href = VIP_URL; }, 2500);
-      } else {
+      const data = await bind({ email: emailInput.value.trim() });
+      if (data.success) showSuccess(data);
+      else {
         showError(data.message || '綁定失敗，請稍後再試');
         btnSubmit.disabled = false;
         btnSubmit.textContent = '確認綁定';
