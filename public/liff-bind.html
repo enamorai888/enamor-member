@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -332,6 +333,20 @@
       <p class="consent-note" style="margin-top:12px;">秘書只在需要的時候出現。平常的新品、故事和小活動，會寄到您的信箱。<br>完成後，會員禮會直接存進您的帳戶。</p>
     </div>
 
+    <div id="desktop-qr" style="display:none;text-align:center;margin:8px 0 16px;">
+      <div style="font-size:15px;color:#1F1F1F;margin-bottom:6px;">請用手機掃描，在 LINE 裡領取</div>
+      <div style="font-size:13px;color:#8B6F47;line-height:1.7;margin-bottom:14px;">打開手機相機或 LINE 掃描下方條碼，<br>會員禮就會直接存進您的帳戶</div>
+      <div id="qr-box" style="display:inline-block;padding:12px;background:#fff;border:1px solid #E5DFD3;"></div>
+      <div style="margin-top:16px;"><a href="#" id="btn-pc-login" style="font-size:13px;color:#6B6760;text-decoration:underline;">我想用電腦登入 LINE 領取</a></div>
+    </div>
+
+    <div id="open-in-line" style="display:none;text-align:center;margin:8px 0 16px;">
+      <div style="font-size:15px;color:#1F1F1F;margin-bottom:6px;">請在 LINE 裡打開領取</div>
+      <div style="font-size:13px;color:#8B6F47;line-height:1.7;margin-bottom:16px;">點下面的按鈕會打開 LINE，<br>會員禮就會直接存進您的帳戶</div>
+      <a href="#" id="btn-open-line" class="btn-bind" style="display:block;text-decoration:none;line-height:1;padding:16px 0;">用 LINE 打開領取</a>
+      <div style="margin-top:16px;"><a href="#" id="btn-web-login" style="font-size:13px;color:#6B6760;text-decoration:underline;">打不開？改用 LINE 帳號登入</a></div>
+    </div>
+
     <div id="bind-form">
       <div class="form-group">
         <input
@@ -439,7 +454,35 @@
   async function initLiff() {
     try {
       await liff.init({ liffId: LIFF_ID });
-      if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
+      if (!liff.isLoggedIn()) {
+        // 用電腦打開（不在 LINE 裡、也不是手機）：先給 QR code 讓客人用手機掃，不直接跳 LINE 帳密登入頁
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (!liff.isInClient() && !isMobile && window.QRCode) {
+          const q = new URLSearchParams(window.location.search);
+          ['code', 'state', 'liffClientId', 'liffRedirectUri', 'liff.state', 'liff.referrer'].forEach(k => q.delete(k));
+          const qs = q.toString();
+          const target = 'https://liff.line.me/' + LIFF_ID + (qs ? '?' + qs : '');
+          document.getElementById('bind-form').style.display = 'none';
+          document.getElementById('desktop-qr').style.display = 'block';
+          new QRCode(document.getElementById('qr-box'), { text: target, width: 180, height: 180 });
+          document.getElementById('btn-pc-login').onclick = (e) => { e.preventDefault(); liff.login({ redirectUri: window.location.href }); };
+          overlay.classList.add('hide');
+          return;
+        }
+        // 手機但不在 LINE 裡（例如從 Gmail、Chrome 打開）：給一顆按鈕直接叫出 LINE App，不讓客人看到帳號密碼頁
+        if (!liff.isInClient() && isMobile) {
+          const q2 = new URLSearchParams(window.location.search);
+          ['code', 'state', 'liffClientId', 'liffRedirectUri', 'liff.state', 'liff.referrer'].forEach(k => q2.delete(k));
+          const qs2 = q2.toString();
+          document.getElementById('bind-form').style.display = 'none';
+          document.getElementById('open-in-line').style.display = 'block';
+          document.getElementById('btn-open-line').href = 'line://app/' + LIFF_ID + (qs2 ? '?' + qs2 : '');
+          document.getElementById('btn-web-login').onclick = (e) => { e.preventDefault(); liff.login({ redirectUri: window.location.href }); };
+          overlay.classList.add('hide');
+          return;
+        }
+        liff.login({ redirectUri: window.location.href }); return;
+      }
 
       // LIFF 初始化後，專屬連結的參數才會回到網址上
       params = new URLSearchParams(window.location.search);
