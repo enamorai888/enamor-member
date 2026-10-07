@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>會員綁定 — EnamoR</title>
+  <title>領取會員禮 — EnamoR</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -308,8 +308,8 @@
     </div>
 
     <div class="title-block">
-      <div class="title-main">會員綁定</div>
-      <div class="title-sub">綁定之後，舒適秘書會在您需要的時候，直接在 LINE 提醒您</div>
+      <div class="title-main">領取會員禮</div>
+      <div class="title-sub">加入 LINE 會員，會員禮直接存進您的帳戶</div>
     </div>
 
     <div class="benefits">
@@ -329,7 +329,7 @@
         <span class="benefit-num">4.</span>
         <span>真正重要的大活動，第一時間通知您</span>
       </div>
-      <p class="consent-note" style="margin-top:12px;">秘書只在需要的時候出現。平常的新品、故事和小活動，會寄到您的信箱。<br>綁定完成，秘書另外為您準備了一份會員禮。</p>
+      <p class="consent-note" style="margin-top:12px;">秘書只在需要的時候出現。平常的新品、故事和小活動，會寄到您的信箱。<br>完成後，會員禮會直接存進您的帳戶。</p>
     </div>
 
     <div id="bind-form">
@@ -343,14 +343,14 @@
         >
         <div id="msg-error" class="msg msg-error"></div>
         <div id="msg-info"  class="msg msg-info"></div>
-        <button class="btn-bind" id="btn-submit" disabled>確認綁定</button>
-        <p class="consent-note">綁定即同意接收 EnamoR 會員電子報及優惠通知</p>
+        <button class="btn-bind" id="btn-submit" disabled>領取會員禮</button>
+        <p class="consent-note">領取即同意接收 EnamoR 會員電子報及優惠通知</p>
       </div>
     </div>
 
     <div class="success-block" id="success-block">
       <div class="success-icon">✓</div>
-      <div class="success-title">綁定完成</div>
+      <div class="success-title">會員禮已到帳</div>
       <div class="success-sub" id="success-sub">月禮連結已發送到您的 LINE<br>請保持好友狀態以繼續收到禮遇</div>
       <div class="gift-block" id="gift-block">
         <div class="gift-label" id="gift-label">秘書為您準備的見面禮</div>
@@ -400,7 +400,7 @@
     const sub = document.getElementById('success-sub');
     const title = document.querySelector('.success-title');
     if (data.alreadyBound && data.reshown) {
-      title.textContent = '您之前已經綁定了';
+      title.textContent = '您已經是會員了';
       sub.innerHTML = '您的禮物還沒使用，<br>點下方按鈕就會自動套用。';
     } else if (data.alreadyBound && data.gift && data.gift.kind === 'monthly') {
       title.textContent = data.gift.label + '準備好了';
@@ -409,7 +409,7 @@
       title.textContent = '本月會員券已經領過了';
       sub.innerHTML = '請到 LINE 裡秘書傳給您的那則訊息，<br>點「直接套用，去逛逛」就能使用。';
     } else if (data.alreadyBound) {
-      title.textContent = '您之前已經綁定了';
+      title.textContent = '您已經是會員了';
       sub.innerHTML = '謝謝您是把 LINE 交給秘書的朋友。<br>每個月的月禮、快用完、該換一輪的時候，秘書都會提醒您。';
     } else {
       sub.innerHTML = '每個月的月禮、會員券，快用完、該換一輪的時候，<br>秘書都會直接在 LINE 告訴您。';
@@ -471,7 +471,7 @@
       sessionStorage.removeItem('enamor_relogin');
       if (data.success) { overlay.classList.add('hide'); showSuccess(data); return; }
       bindForm.style.display = '';
-      if (!data.needEmail) showError(data.message || '連結已失效，請輸入 email 綁定');
+      if (!data.needEmail) showError(data.message || '連結已失效，請輸入購物時的 email 領取');
 
       overlay.classList.add('hide');
       emailInput.disabled = false;
@@ -489,20 +489,20 @@
     if (!validateEmail()) return;
     btnSubmit.disabled = true;
     btnSubmit.textContent = '處理中';
-    showInfo('綁定中，請稍候...');
+    showInfo('正在為您領取，請稍候...');
     try {
       const data = await bind({ email: emailInput.value.trim() });
       if (data.success) showSuccess(data);
       else {
-        showError(data.message || '綁定失敗，請稍後再試');
+        showError(data.message || '領取失敗，請稍後再試');
         btnSubmit.disabled = false;
-        btnSubmit.textContent = '確認綁定';
+        btnSubmit.textContent = '領取會員禮';
       }
     } catch (err) {
       console.error('Bind error:', err);
       showError('連線異常，請稍後再試');
       btnSubmit.disabled = false;
-      btnSubmit.textContent = '確認綁定';
+      btnSubmit.textContent = '領取會員禮';
     }
   });
 
