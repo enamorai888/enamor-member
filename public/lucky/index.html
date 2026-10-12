@@ -63,6 +63,7 @@ h1{font-family:'Noto Serif TC',serif;font-size:30px;line-height:1.35;text-align:
 .cta-note{font-size:12px;color:var(--mute);text-align:center;margin-top:8px}
 .foot{font-size:12px;color:var(--mute);text-align:center;margin-top:28px;line-height:1.8}
 .foot a{color:var(--brand)}
+.linked{display:none;text-align:center;margin-top:10px;font-size:13px;color:#06a54f}
 .join{display:none;text-align:center;margin-top:16px;font-size:14px}
 .join a{color:var(--brand)}
 </style>
@@ -110,6 +111,7 @@ h1{font-family:'Noto Serif TC',serif;font-size:30px;line-height:1.35;text-align:
     <div class="total"><span>開運組合計</span><b>$321</b></div>
     <button class="cta" id="cta" disabled>先選尺寸</button>
     <div class="cta-note">兩件一起放進購物車，滿 $299 出貨｜開運小褲每個帳號限領一件</div>
+    <div class="linked" id="linked">✓ 已連結你的 LINE</div>
     <div class="join" id="join"><a href="https://enamor.cc/加入EnamoRLINE會員">加入 EnamoR LINE 會員，收你的開運色新品通知 →</a></div>
   </section>
 
@@ -265,7 +267,7 @@ $('calc').onclick = function(){
   s.onload = function(){
     liff.init({ liffId: CONFIG.LIFF_ID }).then(function(){
       if (!liff.isLoggedIn()) return;
-      return liff.getProfile().then(function(p){ LINE_UID = p.userId; SRC = 'line'; });
+      return liff.getProfile().then(function(p){ LINE_UID = p.userId; SRC = 'line'; $('linked').style.display = 'block'; });
     }).catch(function(){});
   };
   document.head.appendChild(s);
