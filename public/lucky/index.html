@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>2027 你的開運色｜EnamoR 恩娜茉兒</title>
+<meta name="description" content="只要兩題，看你的 2027 開運色，再帶走一件同色開運小褲。">
+<meta property="og:title" content="2027 你的開運色是什麼？">
+<meta property="og:description" content="只要兩題，看你的 2027 開運色，再帶走一件同色開運小褲，1 元。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f4f1;--card:#fff;--ink:#2b2622;--mute:#8a8079;--line:#e7e1da;--brand:#8a6a4f;--brand-d:#6f5440;--soft:#efe7df}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:520px;margin:0 auto;padding:28px 16px 40px}
+.tag{display:table;margin:0 auto 14px;background:var(--brand);color:#fff;font-size:13px;letter-spacing:.08em;padding:6px 14px;border-radius:999px}
+.brand{font-size:13px;letter-spacing:.18em;color:var(--brand);text-align:center}
+h1{font-family:'Noto Serif TC',serif;font-size:30px;line-height:1.35;text-align:center;margin:14px 0 8px}
+.lead{text-align:center;color:var(--mute);font-size:15px}
+.card{background:var(--card);border-radius:16px;padding:22px 18px;margin-top:22px;box-shadow:0 1px 0 rgba(0,0,0,.03)}
+.q{font-weight:700;font-size:17px;margin-bottom:12px}
+.months{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.months button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:12px 0;font:inherit;font-size:16px;color:var(--ink);cursor:pointer}
+.months button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.wishes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.wishes button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:16px 0;font:inherit;font-size:18px;color:var(--ink);cursor:pointer;letter-spacing:.2em}
+.wishes button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+#q2.show{animation:up .45s ease}
+.hint{font-size:12px;color:var(--mute);margin-top:8px}
+#result{display:none}
+#result.show{display:block;animation:up .45s ease}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.swatch{width:84px;height:84px;border-radius:50%;margin:4px auto 12px;border:1px solid rgba(0,0,0,.08)}
+.rlabel{text-align:center;font-size:13px;color:var(--mute);letter-spacing:.1em}
+.rcolor{font-family:'Noto Serif TC',serif;text-align:center;font-size:32px;margin:2px 0 10px}
+.rtext{font-size:15.5px;text-align:center}
+.divider{height:1px;background:var(--line);margin:20px 0}
+.combo-ttl{font-family:'Noto Serif TC',serif;font-size:17px;text-align:center;margin-bottom:14px}
+.item{display:flex;gap:12px;align-items:center;padding:10px 0}
+.item img{width:72px;height:72px;object-fit:cover;border-radius:10px;background:var(--soft)}
+.item .nm{font-size:15px}
+.item .pr{margin-left:auto;font-weight:700;white-space:nowrap}
+.sizes{display:flex;gap:8px;margin-top:6px}
+.sizes button{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:12px 0;font:inherit;font-size:17px;cursor:pointer;color:var(--ink)}
+.sizes button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.sizer-toggle{background:none;border:0;color:var(--brand);font:inherit;font-size:14px;text-decoration:underline;cursor:pointer;margin-top:10px}
+.sizer{display:none;background:var(--soft);border-radius:12px;padding:14px;margin-top:10px}
+.sizer.show{display:block}
+.sizer-ttl{font-size:14px;font-weight:700;margin-bottom:8px;color:var(--brand)}
+.sizer .row{display:flex;gap:8px}
+.sizer input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;font-size:16px;background:#fff}
+.sizer .pants{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--mute)}
+.sizer .pants button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font:inherit;font-size:14px;cursor:pointer}
+.sizer .pants button.on{background:var(--ink);color:#fff}
+.sizer .calc{width:100%;margin-top:10px;background:var(--ink);color:#fff;border:0;border-radius:8px;padding:11px;font:inherit;cursor:pointer}
+.sizer .out{margin-top:10px;font-size:14px}
+.total{display:flex;justify-content:space-between;font-size:15px;margin-top:14px;color:var(--mute)}
+.total b{color:var(--ink);font-size:18px}
+.cta{display:block;width:100%;margin-top:14px;background:var(--brand);color:#fff;border:0;border-radius:12px;padding:16px;font:inherit;font-size:17px;font-weight:700;cursor:pointer;text-align:center;text-decoration:none}
+.cta:disabled{background:#c9bdb2;cursor:not-allowed}
+.cta-note{font-size:12px;color:var(--mute);text-align:center;margin-top:8px}
+.foot{font-size:12px;color:var(--mute);text-align:center;margin-top:28px;line-height:1.8}
+.foot a{color:var(--brand)}
+.join{display:none;text-align:center;margin-top:16px;font-size:14px}
+.join a{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tag">LINE 好友限定・即日起至 12/31</div>
+  <div class="brand">EnamoR 恩娜茉兒</div>
+  <h1>2027 年，<br>你的開運色是什麼？</h1>
+  <p class="lead">只要兩題，看你的開運色，再帶走一件同色開運小褲。</p>
+
+  <section class="card">
+    <div class="q">你的生日在幾月？</div>
+    <div class="months" id="months"></div>
+    <div class="hint">以國曆生日月份為準</div>
+  </section>
+
+  <section class="card" id="q2" style="display:none">
+    <div class="q">2027 年，你最想求什麼？</div>
+    <div class="wishes" id="wishes"></div>
+  </section>
+
+  <section class="card" id="result">
+    <div class="rlabel">你的 2027 開運色</div>
+    <div class="swatch" id="sw"></div>
+    <div class="rcolor" id="rc"></div>
+    <p class="rtext" id="rt"></p>
+
+    <div class="divider"></div>
+    <div class="combo-ttl">年末，先讓頭皮鬆一口氣；<br>新年，穿上你的開運色。</div>
+
+    <div class="item"><img id="img1" alt=""><div class="nm">開運小褲（<span id="cn"></span>）</div><div class="pr">$1</div></div>
+    <div class="q" style="margin:6px 0 0;font-size:15px">選你的尺寸</div>
+    <div class="sizes" id="sizes"><button data-s="M">M</button><button data-s="L">L</button></div>
+    <div class="sizer show" id="sizer">
+      <div class="sizer-ttl">不確定尺寸？讓 AI 幫你量</div>
+      <div class="row"><input id="h" type="number" inputmode="numeric" placeholder="身高 cm"><input id="w" type="number" inputmode="numeric" placeholder="體重 kg"></div>
+      <div class="pants">平常褲子穿（可不選）：<button>S</button><button>M</button><button>L</button><button>XL</button><button data-v="2L/XXL">2L+</button></div>
+      <button class="calc" id="calc">幫我推薦</button>
+      <div class="out" id="out"></div>
+    </div>
+
+    <div class="item" style="margin-top:8px"><img id="img2" alt=""><div class="nm">Cozy 頭皮放鬆棉雲髮浴露 250ML</div><div class="pr">$320</div></div>
+
+    <div class="total"><span>開運組合計</span><b>$321</b></div>
+    <button class="cta" id="cta" disabled>先選尺寸</button>
+    <div class="cta-note">兩件一起放進購物車，滿 $299 出貨｜開運小褲每個帳號限領一件</div>
+    <div class="join" id="join"><a href="https://enamor.cc/加入EnamoRLINE會員">加入 EnamoR LINE 會員，收你的開運色新品通知 →</a></div>
+  </section>
+
+  <div class="foot">
+    恩娜茉兒專業紡織製造有限公司｜LINE 官方帳號 @enamorshop<br>
+    官網 <a href="https://enamorshop.com">enamorshop.com</a>｜我們不會請你輸入密碼或信用卡
+  </div>
+</div>
+
+<script>
+/* ============ 設定：上架後填這裡 ============ */
+var CONFIG = {
+  SHOP: 'https://enamorshop.com',
+  LIFF_ID: '1656208126-qAXWW9cW',  // 例如 '1656208126-fpNe2w28'；空白＝不啟用 LINE 綁定
+  HAIR_VARIANT: '43470264434736',  // Cozy 髮浴露 250ML 的變體 ID
+  // 1 元開運小褲：每個顏色、尺寸的變體 ID
+  VARIANTS: {
+    '黑':     { M: '43361210859568', L: '43361210892336' },
+    '玫瑰粉':  { M: '50775063396400', L: '50775065755696' },
+    '晨曦藍灰': { M: '50775071227952', L: '50775074078768' },
+    '質感膚':  { M: '43361210925104', L: '43361210957872' }
+  },
+  // 商品圖（可換成各顏色的圖）
+  IMG: {
+    '黑': 'https://enamorshop.com/cdn/shop/files/f275f492-10aa-4f51-9ff7-da414b7083dd.jpg?v=1774420613&width=300',
+    '晨曦藍灰': 'https://enamorshop.com/cdn/shop/files/f275f492-10aa-4f51-9ff7-da414b7083dd.jpg?v=1774420613&width=300',
+    '質感膚': 'https://enamorshop.com/cdn/shop/files/f275f492-10aa-4f51-9ff7-da414b7083dd.jpg?v=1774420613&width=300',
+    '玫瑰粉': 'https://enamorshop.com/cdn/shop/files/f275f492-10aa-4f51-9ff7-da414b7083dd.jpg?v=1774420613&width=300'
+  },
+  HAIR_IMG: 'https://enamorshop.com/cdn/shop/files/user_upload_image_1_hd_1.png?v=1788746092&width=300'
+};
+
+/* ============ 開運色：月份只增加參與感，顏色由「求什麼」決定 ============ */
+var WISH = [
+  { wish:'事業', color:'黑',     hex:'#1f1d1b', line:'沉得住氣，也接得住機會。' },
+  { wish:'愛情', color:'玫瑰粉',  hex:'#d9a3a6', line:'溫柔的人，自帶好人緣。' },
+  { wish:'健康', color:'晨曦藍灰', hex:'#8796a3', line:'新的一年，元氣滿滿。' },
+  { wish:'貴人', color:'質感膚',  hex:'#d8b9a2', line:'溫潤低調，貴人自然靠近。' }
+];
+
+/* ============ 來源：冷信 / LINE ============ */
+var qs = new URLSearchParams(location.search);
+var SRC = qs.get('utm_source') || (/Line\//i.test(navigator.userAgent) ? 'line' : 'direct');
+var LINE_UID = '';
+var picked = null, size = '', month = 0;
+
+function $(id){ return document.getElementById(id); }
+
+(function buildMonths(){
+  var box = $('months');
+  for (var m = 1; m <= 12; m++) {
+    var b = document.createElement('button');
+    b.textContent = m + ' 月'; b.dataset.m = m;
+    b.onclick = function(){ choose(+this.dataset.m, this); };
+    box.appendChild(b);
+  }
+})();
+
+function choose(m, btn){
+  document.querySelectorAll('#months button').forEach(function(x){ x.classList.remove('on'); });
+  btn.classList.add('on');
+  month = m;
+  var q2 = $('q2');
+  q2.style.display = 'block'; q2.classList.add('show');
+  if (picked) showResult(); else setTimeout(function(){ q2.scrollIntoView({ behavior:'smooth', block:'center' }); }, 60);
+}
+
+(function buildWishes(){
+  var box = $('wishes');
+  WISH.forEach(function(w, i){
+    var b = document.createElement('button');
+    b.textContent = w.wish; b.dataset.i = i;
+    b.onclick = function(){
+      document.querySelectorAll('#wishes button').forEach(function(x){ x.classList.remove('on'); });
+      this.classList.add('on');
+      picked = WISH[+this.dataset.i];
+      showResult(true);
+    };
+    box.appendChild(b);
+  });
+})();
+
+function showResult(scroll){
+  $('sw').style.background = picked.hex;
+  $('rc').textContent = picked.color;
+  $('rt').innerHTML = month + ' 月出生的你，2027 年想求<b>' + picked.wish + '</b>。<br>' + picked.line;
+  $('cn').textContent = picked.color;
+  $('img1').src = CONFIG.IMG[picked.color]; $('img2').src = CONFIG.HAIR_IMG;
+  $('result').classList.add('show');
+  refresh();
+  if (scroll) setTimeout(function(){ $('result').scrollIntoView({ behavior:'smooth', block:'start' }); }, 60);
+}
+
+document.querySelectorAll('#sizes button').forEach(function(b){
+  b.onclick = function(){ pickSize(this.dataset.s); };
+});
+function pickSize(s){
+  size = s;
+  document.querySelectorAll('#sizes button').forEach(function(x){ x.classList.toggle('on', x.dataset.s === s); });
+  refresh();
+}
+
+function cartUrl(){
+  var v1 = (CONFIG.VARIANTS[picked.color] || {})[size], v2 = CONFIG.HAIR_VARIANT;
+  if (!v1 || !v2) return '';
+  var p = new URLSearchParams();
+  p.set('attributes[lucky_color]', picked.color);
+  p.set('attributes[lucky_wish]', picked.wish);
+  p.set('attributes[birth_month]', String(month));
+  p.set('attributes[lucky_src]', SRC);
+  if (LINE_UID) p.set('attributes[line_uid]', LINE_UID);
+  p.set('ref', 'lucky2027');
+  p.set('storefront', 'true');  // 到官網購物車頁（不是結帳頁），加價購與月禮限購守衛照常運作
+  p.set('utm_source', SRC); p.set('utm_medium', 'lucky_page'); p.set('utm_campaign', 'lucky2027');
+  return CONFIG.SHOP + '/cart/' + v1 + ':1,' + v2 + ':1?' + p.toString();
+}
+
+function refresh(){
+  var c = $('cta');
+  if (!size) { c.disabled = true; c.textContent = '先選尺寸'; return; }
+  c.disabled = false; c.textContent = '把開運組放進購物車 →';
+}
+$('cta').onclick = function(){
+  var u = cartUrl();
+  if (!u) { alert('開運組還在準備中，請稍後再試，或到官網 enamorshop.com 選購。'); return; }
+  location.href = u;
+};
+
+/* ============ AI 尺寸幫手（跟官網同一套） ============ */
+var pantsSize = null;
+document.querySelectorAll('.sizer .pants button').forEach(function(b){
+  b.onclick = function(){
+    document.querySelectorAll('.sizer .pants button').forEach(function(x){ x.classList.remove('on'); });
+    this.classList.add('on'); pantsSize = this.dataset.v || this.textContent;
+  };
+});
+$('calc').onclick = function(){
+  var h = parseFloat($('h').value), w = parseFloat($('w').value);
+  if (!h || !w || h < 140 || h > 185 || w < 35 || w > 100) { $('out').textContent = '請填身高（140～185）和體重（35～100）'; return; }
+  var r = AISizer.recommend('201-semh-collection', 4, ['M','L'], { height:h, weight:w, pantsSize:pantsSize });
+  if (!r) { $('out').textContent = '算不出來，請參考官網尺寸表'; return; }
+  $('out').innerHTML = 'AI 建議：<b>' + r.size + '</b>（' + r.conf + '）' + (r.note ? '<br>' + r.note : '');
+  pickSize(r.size);
+};
+
+/* ============ LINE：在 LINE 裡打開就帶上 LINE ID（不強迫登入） ============ */
+(function(){
+  var inLine = /Line\//i.test(navigator.userAgent);
+  if (!inLine) { $('join').style.display = 'block'; }
+  if (!CONFIG.LIFF_ID || !inLine) return;
+  var s = document.createElement('script');
+  s.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+  s.onload = function(){
+    liff.init({ liffId: CONFIG.LIFF_ID }).then(function(){
+      if (!liff.isLoggedIn()) return;
+      return liff.getProfile().then(function(p){ LINE_UID = p.userId; SRC = 'line'; });
+    }).catch(function(){});
+  };
+  document.head.appendChild(s);
+})();
+</script>
+<script>
+/**
+ * EnamoR AI 尺寸推薦系統 v2.1 — Step1 × Step2 交叉比對升級
+ */
+
+var AISizer = (function() {
+
+  var HANDLE_PREFIX_MAP = {
+    '201': 'pants',
+    '301': 'bra',
+    '601': 'pajama',
+    '863': 'pajama'
+  };
+
+  var STRETCH_WEIGHT_OFFSET = {
+    1: -10,
+    2: -5,
+    3: 0,
+    4: +5,
+    5: +10
+  };
+
+  var TYPE_CONFIGS = {
+    pants: {
+      label: '褲裝',
+      step1: { type: 'height_weight', heightRange: [140, 180], weightRange: [40, 100] },
+      step2: { type: 'none' },
+      calcBW: function(adj, sizes) {
+        var s = sizes;
+        if (s.length === 2) {
+          if (adj <= 56) return _res(s[0], '非常推薦',   46, '');
+          if (adj <= 63) return _res(s[0], '適合',       62, s[0] + ' 合適，若介意偏緊可考慮大一碼');
+          if (adj <= 72) return _res(s[1], '非常推薦',   48, '');
+          return           _res(s[1], '建議往大選', 30, '體型偏豐腴，建議選大一碼或彈性款');
+        }
+        if (s.length === 3) {
+          if (adj <= 56) return _res(s[0], '非常推薦',   46, '');
+          if (adj <= 63) return _res(s[1], '非常推薦',   46, '');
+          if (adj <= 72) return _res(s[2], '適合',       60, s[2] + ' 合適，若介意偏緊可往大選');
+          return           _res(s[2], '建議往大選', 30, '體型偏豐腴，建議選大一碼或彈性款');
+        }
+        return _res('F', '非常推薦', 50, '');
+      },
+      pantsMapBase: {
+        'S':      { toIdx: 0, sizeRank: 0, conf: '非常推薦',   bar: 46, noteKey: 'pants_s' },
+        'M':      { toIdx: 0, sizeRank: 1, conf: '非常推薦',   bar: 46, noteKey: 'pants_m' },
+        'L':      { toIdx: 1, sizeRank: 2, conf: '非常推薦',   bar: 48, noteKey: 'pants_l' },
+        'XL':     { toIdx: 1, sizeRank: 3, conf: '建議往大選', bar: 38, noteKey: 'pants_xl' },
+        '2L/XXL': { toIdx: 1, sizeRank: 4, conf: '建議往大選', bar: 25, noteKey: 'pants_2l' }
+      }
+    },
+    bra: {
+      label: 'Bra Top',
+      step1: { type: 'weight_bust', weightRange: [40, 100], bustRange: [60, 120] },
+      step2: { type: 'none' },
+      calcBW: function(w, bust, sizes, stretch_score) {
+        var offset = STRETCH_WEIGHT_OFFSET[stretch_score] || 0;
+        var adjW = w + offset;
+        var s = sizes;
+        if (adjW <= 65 && bust <= 90)  return _res(s[0]||'M', '非常推薦',   46, '');
+        if (adjW <= 72 && bust <= 95)  return _res(s[0]||'M', '適合',       62, '');
+        if (adjW <= 78 && bust <= 100) return _res(s[1]||'L', '非常推薦',   48, '');
+        return                                _res(s[1]||'L', '建議往大選', 30, '');
+      }
+    },
+    pajama: {
+      label: '睡衣',
+      step1: { type: 'weight_only', weightRange: [40, 100] },
+      step2: { type: 'top_size', options: ['S','M','L','XL','2L'], label: '請問您平時上衣尺寸？' },
+      calcBW: function(w, sizes, stretch_score) {
+        var offset = STRETCH_WEIGHT_OFFSET[stretch_score] || 0;
+        var adjW = w + offset;
+        var s = sizes;
+        if (adjW <= 55) return _res(s[0]||'M',  '非常推薦',   46, '');
+        if (adjW <= 65) return _res(s[1]||'L',  '非常推薦',   48, '');
+        if (adjW <= 72) return _res(s[2]||'XL', '非常推薦',   48, '');
+        return                 _res(s[2]||'XL', '建議往大選', 30, '');
+      }
+    }
+  };
+
+  var NOTES = {
+    pants_s:  function(s0) { return s0 + ' 非常合身，適合纖細體型'; },
+    pants_m:  function(s0) { return s0 + ' 標準合身，日常穿著舒適'; },
+    pants_l:  function(s0) { return s0 + ' 合身，腰臀較豐腴可考慮'; },
+    pants_xl: function(s0) { return s0 + ' 尺寸偏大，建議確認尺寸表'; },
+    pants_2l: function(s0) { return s0 + ' 已是最大碼，請留意退換貨條件'; },
+    pants_3l: function(s0) { return s0 + ' 超出一般推薦範圍，請留意退換貨條件'; }
+  };
+
+  var CONF_RANK = {
+    '非常推薦':   3,
+    '適合':       2,
+    '建議往大選': 1
+  };
+
+  function _res(size, conf, bar, note) {
+    var clampedBar = Math.max(15, Math.min(85, bar));
+    return { size: size, conf: conf, bar: clampedBar, note: note };
+  }
+
+  function getTypeFromHandle(handle) {
+    if (!handle) return null;
+    var prefix = String(handle).split('-')[0];
+    return HANDLE_PREFIX_MAP[prefix] !== undefined ? HANDLE_PREFIX_MAP[prefix] : null;
+  }
+
+  function getStretchOffset(stretch_score) {
+    return STRETCH_WEIGHT_OFFSET[parseInt(stretch_score)] || 0;
+  }
+
+  function calcPants(inputs, sizes, stretch_score) {
+    var cfg = TYPE_CONFIGS.pants;
+    var offset = getStretchOffset(stretch_score);
+
+    var ALL_SIZES_ORDER = ['S','M','L','XL','2L/XXL'];
+
+    var step2Result = null;
+    if (inputs.pantsSize) {
+      var base = cfg.pantsMapBase[inputs.pantsSize];
+      if (base) {
+        var idx2 = sizes.indexOf(inputs.pantsSize);
+        if (idx2 === -1) {
+          var userRank = ALL_SIZES_ORDER.indexOf(inputs.pantsSize);
+          for (var si = 0; si < ALL_SIZES_ORDER.length; si++) {
+            if (ALL_SIZES_ORDER.indexOf(ALL_SIZES_ORDER[si]) >= userRank) {
+              var fi = sizes.indexOf(ALL_SIZES_ORDER[si]);
+              if (fi !== -1) { idx2 = fi; break; }
+            }
+          }
+        }
+        if (idx2 === -1) idx2 = sizes.length - 1;
+        var size2 = sizes[idx2];
+        var note2 = NOTES[base.noteKey] ? NOTES[base.noteKey](size2) : '';
+        var conf2 = (offset !== 0 && base.conf === '非常推薦') ? '適合' : base.conf;
+        step2Result = { size: size2, idx: idx2, conf: conf2, bar: base.bar, note: note2 };
+      }
+    }
+
+    var step1Result = null;
+    var adj = null;
+    if (inputs.height && inputs.weight) {
+      adj = inputs.weight + (inputs.height - 158) * 0.18 + offset;
+      var raw1 = cfg.calcBW(adj, sizes);
+      var idx1 = sizes.indexOf(raw1.size);
+      if (idx1 === -1) idx1 = sizes.length - 1;
+      step1Result = { size: raw1.size, idx: idx1, conf: raw1.conf, bar: raw1.bar, note: raw1.note };
+    }
+
+    if (step2Result && !step1Result) {
+      return _res(step2Result.size, step2Result.conf, step2Result.bar, step2Result.note);
+    }
+
+    if (step1Result && !step2Result) {
+      return _res(step1Result.size, step1Result.conf, step1Result.bar, step1Result.note);
+    }
+
+    if (step1Result && step2Result) {
+      if (adj !== null && adj > 72 && step2Result.idx === 0) {
+        var warnSize = sizes[sizes.length - 1];
+        return _res(
+          warnSize,
+          '建議往大選',
+          22,
+          '⚠️ 您的體重偏高，但選擇的褲子尺寸偏小，' +
+          '實際穿著可能偏緊。建議選擇 ' + warnSize + ' 或確認尺寸表後再下單。'
+        );
+      }
+
+      if (step1Result.size === step2Result.size) {
+        var mergedBar = Math.max(step1Result.bar, step2Result.bar);
+        var mergedConf = (CONF_RANK[step1Result.conf] >= 3 || CONF_RANK[step2Result.conf] >= 3)
+          ? '非常推薦' : step1Result.conf;
+        var mergedNote = '身形數據與您平時穿著的褲子尺寸都指向 ' + step1Result.size + '，推薦信心度高。';
+        return _res(step1Result.size, mergedConf, mergedBar, mergedNote);
+      }
+
+      var finalIdx = Math.max(step1Result.idx, step2Result.idx);
+      var finalSize = sizes[finalIdx] !== undefined ? sizes[finalIdx] : sizes[sizes.length - 1];
+      var reasonNote;
+      if (step1Result.idx > step2Result.idx) {
+        reasonNote = '依您的身高體重建議 ' + step1Result.size +
+          '，但您平時褲子穿 ' + step2Result.size +
+          '（偏小）。為確保穿著舒適，建議選擇 ' + finalSize + '，若偏好合身感可試穿後決定。';
+      } else {
+        reasonNote = '依您的身高體重建議 ' + step1Result.size +
+          '，但您平時褲子穿 ' + step2Result.size +
+          '（偏大）。建議選 ' + finalSize + '，版型較寬鬆舒適。';
+      }
+      var finalBar = Math.min(step1Result.bar, step2Result.bar);
+      return _res(finalSize, '適合', finalBar, reasonNote);
+    }
+
+    return null;
+  }
+
+  function calcBra(inputs, sizes, stretch_score) {
+    return TYPE_CONFIGS.bra.calcBW(inputs.weight, inputs.bust, sizes, stretch_score);
+  }
+
+  function calcPajama(inputs, sizes, stretch_score) {
+    return TYPE_CONFIGS.pajama.calcBW(inputs.weight, sizes, stretch_score);
+  }
+
+  return {
+    getTypeFromHandle: getTypeFromHandle,
+    getTypeConfig: function(type) { return TYPE_CONFIGS[type] || null; },
+    getStretchOffset: getStretchOffset,
+    recommend: function(productHandle, stretch_score, sizes, inputs) {
+      var type = getTypeFromHandle(productHandle);
+      if (!type) return null;
+      if (type === 'pants')  return calcPants(inputs, sizes, stretch_score);
+      if (type === 'bra')    return calcBra(inputs, sizes, stretch_score);
+      if (type === 'pajama') return calcPajama(inputs, sizes, stretch_score);
+      return null;
+    },
+    shouldShow: function(productHandle) {
+      return getTypeFromHandle(productHandle) !== null;
+    },
+    CONF_COLORS: {
+      '非常推薦':   '#4caf50',
+      '適合':       '#f0b429',
+      '建議往大選': '#e24b4a'
+    }
+  };
+})();
+</script>
+</body>
+</html>
